@@ -16,14 +16,14 @@
         .tab.active { border-bottom: 3px solid #007bff; color: #007bff; }
         
         #ui-layer { position: absolute; top: 120px; left: 20px; z-index: 1001; display: flex; flex-direction: column; gap: 10px; }
-        button { padding: 10px 15px; background: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        button { padding: 10px 15px; background: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: background 0.2s; }
+        button:hover { filter: brightness(1.1); }
         button.reset { background: #ff3b30; }
-        button.info { background: #17a2b8; } /* 설명 버튼 색상 */
+        button.info { background: #17a2b8; } 
         
         #angleUi { display: none; align-items: center; background: rgba(255,255,255,0.95); padding: 10px 15px; border-radius: 8px; font-weight: bold; font-size: 14px; color: #333; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: pointer; border: 2px solid #007bff; }
         #angleUi input { margin-right: 8px; cursor: pointer; width: 16px; height: 16px; }
 
-        /* 새로 추가된 정보 패널 스타일 */
         #infoBox { display: none; position: absolute; top: 120px; right: 20px; width: 320px; background: rgba(255, 255, 255, 0.95); padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); border-left: 5px solid #17a2b8; font-size: 14px; line-height: 1.6; color: #333; z-index: 1001; }
         #infoBox h3 { margin-top: 0; margin-bottom: 12px; color: #17a2b8; font-size: 18px; }
 
@@ -68,10 +68,8 @@
     let activePoint = null; 
     let rays = [];
 
-    // 상태 관리 변수 (설명창 켜짐/꺼짐)
     let isInfoOpen = false;
 
-    // 모드별 개념 설명 텍스트
     const conceptTexts = {
         1: "<h3>자취 작도 원리</h3>포물선은 <b>'초점'</b>과 <b>'준선'</b>에서 같은 거리에 있는 점들의 집합입니다.<br><br>• 기준선 위의 <b>점 A</b>와 특정 점(<b>초점</b>)을 잇는 선분의 수직이등분선<br>• 점 A에서 수직으로 올린 선<br><br>이 두 선이 만나는 교점을 추적하면 완벽한 포물선이 그려집니다.",
         2: "<h3>포물선의 정의</h3>평면 위의 한 고정된 점(<b>초점</b>)과 그 점을 지나지 않는 한 고정된 직선(<b>준선</b>)에 이르는 <b>거리가 같은 점들의 집합</b>입니다.<br><br>• <b>초점(Focus)</b> : 중심이 되는 기준점<br>• <b>준선(Directrix)</b> : 기준이 되는 직선<br>• <b>꼭짓점(Vertex)</b> : 초점과 준선의 정중앙 점<br>• <b>대칭축(Axis)</b> : 초점을 지나며 준선에 수직인 선",
@@ -100,7 +98,6 @@
         pop();
     }
 
-    // --- 1번: 자취 작도 모드 ---
     function runMode1() {
         let worldMX = (mouseX - width/2 - offsetX) / zoom;
         let worldMY = (mouseY - height/2 - offsetY) / zoom;
@@ -152,15 +149,16 @@
         return null;
     }
 
-    // --- 2번: 정의 학습 모드 ---
     function runMode2() {
         let p = 150; 
         let worldMX = (mouseX - width/2 - offsetX) / zoom;
         let worldMY = (mouseY - height/2 - offsetY) / zoom;
 
+        // 대칭축과 준선 그리기
         stroke(180); strokeWeight(4/zoom); line(-height*5, 0, height*5, 0); 
         stroke(255, 59, 48); strokeWeight(2/zoom); line(-p, -height*5, -p, height*5); 
         
+        // 포물선 그리기
         noFill(); stroke(0); strokeWeight(2/zoom);
         beginShape();
         for (let y = -1000; y < 1000; y += 10) vertex(pow(y, 2)/(4*p), y);
@@ -168,16 +166,41 @@
 
         let hoveredTerm = checkHoveredTerm(worldMX, worldMY, p);
 
-        if (mouseIsPressed && !isOverUI() && hoveredTerm) {
-            fill(0); noStroke(); textSize(16/zoom); textAlign(CENTER);
-            if (hoveredTerm === "axis") text("대칭축", max(worldMX, 100/zoom), -15/zoom);
-            if (hoveredTerm === "directrix") text("준선", -p - 50/zoom, -150/zoom);
-            if (hoveredTerm === "focus") text("초점", p, -25/zoom);
-            if (hoveredTerm === "vertex") text("꼭짓점", 0, 35/zoom);
+        // 마우스 호버 시 강조 및 텍스트 출력 로직 (클릭 조건 제거)
+        if (!isOverUI() && hoveredTerm) {
+            // 하이라이트 효과
+            if (hoveredTerm === "focus") {
+                fill(255, 204, 0, 100); noStroke(); ellipse(p, 0, 35/zoom);
+            } else if (hoveredTerm === "vertex") {
+                fill(255, 204, 0, 100); noStroke(); ellipse(0, 0, 35/zoom);
+            } else if (hoveredTerm === "directrix") {
+                stroke(255, 204, 0, 100); strokeWeight(15/zoom); line(-p, -height*5, -p, height*5);
+            } else if (hoveredTerm === "axis") {
+                stroke(255, 204, 0, 100); strokeWeight(15/zoom); line(-height*5, 0, height*5, 0);
+            }
+
+            // 텍스트 렌더링
+            fill(0); noStroke(); textSize(16/zoom); 
+            if (hoveredTerm === "axis") {
+                textAlign(CENTER); 
+                text("대칭축", max(worldMX, 100/zoom), -15/zoom); // 마우스 X 좌표 따라다님
+            }
+            if (hoveredTerm === "directrix") {
+                textAlign(RIGHT); 
+                text("준선", -p - 15/zoom, worldMY - 10/zoom); // 마우스 Y 좌표 따라다님
+            }
+            if (hoveredTerm === "focus") {
+                textAlign(CENTER); 
+                text("초점", p, -25/zoom);
+            }
+            if (hoveredTerm === "vertex") {
+                textAlign(CENTER); 
+                text("꼭짓점", 0, 35/zoom);
+            }
         }
 
-        fill(0); noStroke(); ellipse(0, 0, 12/zoom);
-        fill(0, 122, 255); ellipse(p, 0, 15/zoom);
+        fill(0); noStroke(); ellipse(0, 0, 12/zoom); // 꼭짓점
+        fill(0, 122, 255); ellipse(p, 0, 15/zoom); // 초점
 
         let targetX = null, targetY = null, targetD = null;
         
@@ -229,7 +252,6 @@
         return path[path.length - 1];
     }
 
-    // --- 3번: 광학 성질 모드 ---
     function runMode3() {
         let p = 150; 
         let worldMX = (mouseX - width/2 - offsetX) / zoom;
@@ -340,7 +362,6 @@
                         if (vn.x < 0) vn.mult(-1); 
                     }
 
-                    // 1. 접선(초록 점선) 그리기
                     stroke(40, 167, 69, 180); strokeWeight(2/zoom); drawingContext.setLineDash([6, 6]);
                     line(hx - vt.x, hy - vt.y, hx + vt.x, hy + vt.y);
                     drawingContext.setLineDash([]);
@@ -349,11 +370,9 @@
                     let txtTanPos = p5.Vector.add(createVector(hx, hy), vt).add(vt.copy().normalize().mult(15/zoom));
                     text("접선", txtTanPos.x, txtTanPos.y);
 
-                    // 2. 법선(주황 실선) 그리기
                     stroke(255, 136, 0, 220); strokeWeight(2/zoom);
                     line(hx, hy, hx + vn.x, hy + vn.y);
 
-                    // 3. 입사/반사 벡터 및 각도 계산
                     let vInc = createVector(r.path[0].x - hx, r.path[0].y - hy).normalize(); 
                     let vRef = createVector(r.path[2].x - hx, r.path[2].y - hy).normalize(); 
                     let vNorm = vn.copy().normalize();
@@ -365,7 +384,6 @@
                     let angInc = vInc.heading();
                     let angRef = vRef.heading();
 
-                    // 4. 완벽한 둥근 호(Arc) 그리기
                     let rArc = 45 / zoom;
                     noFill(); stroke(255, 100, 0, 180); strokeWeight(2/zoom);
                     
@@ -383,7 +401,6 @@
                     drawArc(angNorm, angInc);
                     drawArc(angNorm, angRef);
 
-                    // 5. 각도 텍스트 출력
                     fill(255, 100, 0); noStroke(); textSize(14/zoom); textAlign(CENTER, CENTER);
                     let txtIncPos = p5.Vector.add(vInc, vNorm).normalize().mult(70/zoom);
                     let txtRefPos = p5.Vector.add(vRef, vNorm).normalize().mult(70/zoom);
@@ -409,7 +426,6 @@
         }
     }
 
-    // --- 탭 이동 로직 업데이트 ---
     function setMode(m) {
         mode = m;
         document.getElementById('tab1').classList.toggle('active', m === 1);
@@ -419,10 +435,9 @@
         document.getElementById('angleUi').style.display = (m === 3) ? 'flex' : 'none';
         
         updateInstruction();
-        updateInfoText(); // 모드가 바뀔 때 설명창 내용도 자동 갱신
+        updateInfoText(); 
     }
 
-    // --- 설명창 토글 함수 ---
     function toggleInfo() {
         isInfoOpen = !isInfoOpen;
         let btn = document.getElementById('infoToggleBtn');
@@ -438,11 +453,8 @@
         }
     }
 
-    // --- 설명창 내용 업데이트 함수 ---
     function updateInfoText() {
-        if (isInfoOpen) {
-            document.getElementById('infoBox').innerHTML = conceptTexts[mode];
-        }
+        if (isInfoOpen) document.getElementById('infoBox').innerHTML = conceptTexts[mode];
     }
 
     function updateInstruction() {
@@ -450,7 +462,8 @@
         if (mode === 1) {
             ins.innerHTML = "휠: 확대/축소 | 우클릭 드래그: 이동<br>기준선 위의 <b>초록색 점 A</b>를 위아래로 움직여보세요.";
         } else if (mode === 2) {
-            ins.innerHTML = "포물선 위를 클릭하면 <b>길이 정보</b>가 표시됩니다.<br>준선, 초점, 꼭짓점, 축 부근을 <b>꾹 누르면</b> 이름이 나타납니다.";
+            // 설명 업데이트: 마우스를 올려보라는 내용으로 변경
+            ins.innerHTML = "포물선 위를 클릭하면 <b>길이 정보</b>가 표시됩니다.<br>준선, 초점, 꼭짓점, 축 부근에 <b>마우스를 올려보세요.</b>";
         } else if (mode === 3) {
             ins.innerHTML = "빈 공간을 <b>꾹 누르고 있어보세요.</b> 빛의 이중 반사를 확인할 수 있습니다.<br><b>'입사각/반사각 보기'</b>를 체크하면 부딪히는 순간 각도를 보여줍니다.";
         }
@@ -460,7 +473,6 @@
     function mouseDragged() { if (mouseButton === RIGHT) { offsetX += mouseX - pmouseX; offsetY += mouseY - pmouseY; } }
     function mouseWheel(event) { zoom = constrain(zoom - event.delta * 0.001, 0.2, 4); return false; }
     
-    // UI 위인지 판단하는 구역 업데이트 (오른쪽 상단 설명창 포함)
     function isOverUI() { 
         let inLeftMenu = mouseY < 110 || (mouseX < 220 && mouseY < 280);
         let inRightInfo = isInfoOpen && (mouseX > width - 360 && mouseY < 400); 
