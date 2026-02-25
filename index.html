@@ -10,6 +10,11 @@
         #menu { position: absolute; top: 0; width: 100%; display: flex; justify-content: center; background: rgba(255, 255, 255, 0.9); box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 100; }
         .tab { padding: 15px 20px; cursor: pointer; border-bottom: 3px solid transparent; font-weight: bold; color: #555; }
         .tab.active { border-bottom: 3px solid #007bff; color: #007bff; }
+        
+        #controls { position: absolute; top: 70px; left: 20px; z-index: 101; }
+        button { padding: 10px 15px; background: #ff3b30; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        button:hover { background: #d32f2f; }
+        
         #instructions { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); color: white; padding: 10px 20px; border-radius: 20px; font-size: 14px; pointer-events: none; }
     </style>
 </head>
@@ -21,18 +26,22 @@
     <div class="tab" onclick="alert('곧 업데이트될 예정입니다!')">3. 광학 성질</div>
 </div>
 
-<div id="instructions">빨간색 준선 위의 점 A를 위아래로 드래그해보세요!</div>
+<div id="controls">
+    <button onclick="resetTrace()">자취 초기화</button>
+</div>
+
+<div id="instructions">준선 위의 점 A를 드래그하여 자취를 만들어보세요!</div>
 
 <script>
     let focusF;
-    let directrixX = 150; // 준선 위치 (세로선)
-    let points = [];      // 자취를 저장할 배열
+    let directrixX = 150; 
+    let points = [];      
     let isDragging = false;
-    let ay;               // 점 A의 y좌표
+    let ay;               
 
     function setup() {
         createCanvas(windowWidth, windowHeight);
-        focusF = createVector(450, height / 2); // 초점 F의 위치
+        focusF = createVector(450, height / 2); 
         ay = height / 2;
     }
 
@@ -40,10 +49,14 @@
         background(255);
         drawGrid();
 
-        // 1. 준선 그리기 (빨간색)
+        // 1. 준선 L 그리기 (빨간색)
         stroke(255, 59, 48);
         strokeWeight(4);
         line(directrixX, 0, directrixX, height);
+        fill(255, 59, 48);
+        noStroke();
+        textSize(18);
+        text("준선 L", directrixX - 40, 30);
         
         // 2. 초점 F 그리기 (파란색)
         fill(0, 122, 255);
@@ -52,9 +65,10 @@
         textAlign(CENTER);
         text("초점 F", focusF.x, focusF.y - 15);
 
-        // 3. 드래그 로직 (준선 근처에서 마우스/터치 시)
+        // 3. 드래그 로직
         if (mouseIsPressed) {
-            if (abs(mouseX - directrixX) < 50 || isDragging) {
+            // 메뉴바나 버튼 영역 제외하고 드래그 감지
+            if (mouseY > 60 && (abs(mouseX - directrixX) < 60 || isDragging)) {
                 ay = constrain(mouseY, 50, height - 50);
                 isDragging = true;
             }
@@ -64,24 +78,27 @@
 
         // 4. 점 A (준선 위)
         fill(40, 167, 69);
-        ellipse(directrixX, ay, 12, 12);
+        stroke(255);
+        strokeWeight(2);
+        ellipse(directrixX, ay, 14, 14);
+        noStroke();
+        fill(0);
         text("A", directrixX - 25, ay + 5);
 
-        // 5. 점 B 계산 (수학적 원리: AF 중점의 수직이등분선과 A에서 나가는 수선의 교점)
-        // x-d = sqrt((x-fx)^2 + (ay-fy)^2) 공식을 정리한 것
+        // 5. 점 B 계산
         let fx = focusF.x;
         let fy = focusF.y;
         let d = directrixX;
         let bx = (pow(fx, 2) + pow(ay - fy, 2) - pow(d, 2)) / (2 * (fx - d));
         let by = ay;
 
-        // 6. 연결선 및 거리 표시 (이미지 요청 사항)
+        // 6. 연결선 및 거리 표시
         stroke(40, 167, 69);
         strokeWeight(2);
-        line(directrixX, ay, bx, by); // 준선-B (가로선)
-        line(fx, fy, bx, by);         // 초점-B (대각선)
+        line(directrixX, ay, bx, by); 
+        line(fx, fy, bx, by);         
 
-        // 거리 텍스트와 기호 (||)
+        // 거리 텍스트
         let distVal = abs(bx - directrixX);
         fill(0);
         noStroke();
@@ -95,8 +112,8 @@
         }
 
         noFill();
-        stroke(100, 100, 100, 150);
-        strokeWeight(2);
+        stroke(150, 150, 150, 200);
+        strokeWeight(3);
         beginShape();
         for (let p of points) {
             vertex(p.x, p.y);
@@ -105,8 +122,16 @@
 
         // 현재 점 B 표시
         fill(255, 59, 48);
-        ellipse(bx, by, 10, 10);
-        text("B (자취)", bx + 30, by + 5);
+        stroke(255);
+        strokeWeight(2);
+        ellipse(bx, by, 12, 12);
+        noStroke();
+        fill(255, 59, 48);
+        text("점 B (자취)", bx + 40, by + 5);
+    }
+
+    function resetTrace() {
+        points = [];
     }
 
     function drawGrid() {
