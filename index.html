@@ -23,7 +23,7 @@
 <div id="menu">
     <div id="tab1" class="tab active" onclick="setMode(1)">1. 자취 작도</div>
     <div id="tab2" class="tab" onclick="setMode(2)">2. 정의 학습</div>
-    <div id="tab3" class="tab" onclick="alert('곧 업데이트됩니다!')">3. 광학 성질</div>
+    <div id="tab3" class="tab" onclick="setMode(3)">3. 광학 성질</div>
 </div>
 
 <div id="ui-layer">
@@ -50,6 +50,9 @@
     // 2번 모드 데이터
     let activePoint = null; 
 
+    // 3번 모드 데이터 (광선)
+    let rays = [];
+
     function setup() {
         createCanvas(windowWidth, windowHeight);
         specificPoint = createVector(150, 0); 
@@ -67,6 +70,7 @@
 
         if (mode === 1) runMode1();
         else if (mode === 2) runMode2();
+        else if (mode === 3) runMode3();
         
         pop();
     }
@@ -115,12 +119,12 @@
         fill(255, 59, 48); ellipse(bx, ay, 10/zoom);
     }
 
-    // --- 클릭된 영역 확인 함수 (2번 모드용) ---
+    // --- 2번 영역 확인 함수 ---
     function checkHoveredTerm(wx, wy, p) {
-        if (dist(wx, wy, p, 0) < 40/zoom) return "focus";       // 초점
-        if (dist(wx, wy, 0, 0) < 40/zoom) return "vertex";      // 꼭짓점
-        if (abs(wx - (-p)) < 40/zoom) return "directrix";       // 준선
-        if (abs(wy) < 30/zoom && wx > 40/zoom) return "axis";   // 대칭축 (꼭짓점 오른쪽 영역)
+        if (dist(wx, wy, p, 0) < 40/zoom) return "focus";       
+        if (dist(wx, wy, 0, 0) < 40/zoom) return "vertex";      
+        if (abs(wx - (-p)) < 40/zoom) return "directrix";       
+        if (abs(wy) < 30/zoom && wx > 40/zoom) return "axis";   
         return null;
     }
 
@@ -130,9 +134,15 @@
         let worldMX = (mouseX - width/2 - offsetX) / zoom;
         let worldMY = (mouseY - height/2 - offsetY) / zoom;
 
-        // 배경 요소
-        stroke(220); line(-height*5, 0, height*5, 0); 
-        stroke(255, 59, 48); line(-p, -height*5, -p, height*5); 
+        // 대칭축 (두께를 굵게 4/zoom, 색상 진하게 설정)
+        stroke(180); strokeWeight(4/zoom); 
+        line(-height*5, 0, height*5, 0); 
+        
+        // 준선
+        stroke(255, 59, 48); strokeWeight(2/zoom);
+        line(-p, -height*5, -p, height*5); 
+        
+        // 포물선
         noFill(); stroke(0); strokeWeight(2/zoom);
         beginShape();
         for (let y = -1000; y < 1000; y += 10) vertex(pow(y, 2)/(4*p), y);
@@ -140,7 +150,6 @@
 
         let hoveredTerm = checkHoveredTerm(worldMX, worldMY, p);
 
-        // 요소 텍스트 표시 (마우스 누르고 있을 때)
         if (mouseIsPressed && !isOverUI() && hoveredTerm) {
             fill(0); noStroke(); textSize(16/zoom); textAlign(CENTER);
             if (hoveredTerm === "axis") text("대칭축", max(worldMX, 100/zoom), -15/zoom);
@@ -149,13 +158,11 @@
             if (hoveredTerm === "vertex") text("꼭짓점", 0, 35/zoom);
         }
 
-        // 꼭짓점, 초점 점 찍기
         fill(0); noStroke(); ellipse(0, 0, 12/zoom);
         fill(0, 122, 255); ellipse(p, 0, 15/zoom);
 
         let targetX = null, targetY = null, targetD = null;
         
-        // 용어를 누른 게 아닐 때만 선분과 점을 실시간으로 보여줌
         if (mouseIsPressed && mouseButton === LEFT && !isOverUI() && !hoveredTerm) {
             targetY = worldMY;
             targetX = pow(targetY, 2) / (4*p);
@@ -166,7 +173,6 @@
             targetD = activePoint.d;
         }
 
-        // 선, 거리 텍스트, 길이 같음 기호 표시
         if (targetX !== null) {
             stroke(34, 197, 94); strokeWeight(3/zoom);
             line(targetX, targetY, -p, targetY); 
@@ -175,9 +181,7 @@
             drawTickMarks(targetX, targetY, -p, targetY);
             drawTickMarks(targetX, targetY, p, 0);
 
-            fill(34, 197, 94); noStroke();
-            ellipse(targetX, targetY, 12/zoom);
-
+            fill(34, 197, 94); noStroke(); ellipse(targetX, targetY, 12/zoom);
             fill(0); textSize(14/zoom); textAlign(CENTER);
             text("길이: " + targetD.toFixed(1), (targetX - p)/2, targetY - 15/zoom);
             text("길이: " + targetD.toFixed(1), (targetX + p)/2, targetY/2 - 15/zoom);
@@ -185,28 +189,118 @@
     }
 
     function drawTickMarks(x1, y1, x2, y2) {
-        let midX = (x1 + x2) / 2;
-        let midY = (y1 + y2) / 2;
+        let midX = (x1 + x2) / 2; let midY = (y1 + y2) / 2;
         let angle = atan2(y2 - y1, x2 - x1);
-        
-        push();
-        translate(midX, midY);
-        rotate(angle);
+        push(); translate(midX, midY); rotate(angle);
         stroke(0); strokeWeight(2/zoom);
-        let gap = 3/zoom;
-        let len = 6/zoom;
-        line(-gap, -len, -gap, len);
-        line(gap, -len, gap, len);
+        let gap = 3/zoom; let len = 6/zoom;
+        line(-gap, -len, -gap, len); line(gap, -len, gap, len);
         pop();
     }
 
+    // --- 3번: 광학 성질 모드 ---
+    function runMode3() {
+        let p = 150; 
+        let worldMX = (mouseX - width/2 - offsetX) / zoom;
+        let worldMY = (mouseY - height/2 - offsetY) / zoom;
+
+        // 대칭축 (점선)
+        stroke(200); strokeWeight(2/zoom); drawingContext.setLineDash([10, 10]);
+        line(-height*5, 0, height*5, 0); drawingContext.setLineDash([]);
+
+        // 포물선 반사경 (두껍게)
+        noFill(); stroke(50, 50, 200); strokeWeight(4/zoom);
+        beginShape();
+        for (let y = -1200; y < 1200; y += 10) vertex(pow(y, 2)/(4*p), y);
+        endShape();
+
+        // 초점
+        fill(0, 122, 255); noStroke(); ellipse(p, 0, 15/zoom);
+        textSize(16/zoom); textAlign(CENTER); fill(0); text("초점(F)", p, -20/zoom);
+
+        // 상호작용: 손전등 빛 쏘기
+        if (mouseIsPressed && mouseButton === LEFT && !isOverUI()) {
+            let hx = pow(worldMY, 2) / (4*p);
+            let isInside = worldMX > hx;
+
+            // 손전등 그래픽
+            fill(100); noStroke(); rectMode(CENTER);
+            let bodyX = isInside ? worldMX + 15/zoom : worldMX - 15/zoom;
+            rect(bodyX, worldMY, 30/zoom, 18/zoom, 4/zoom);
+            fill(255, 215, 0);
+            let bulbX = isInside ? worldMX - 4/zoom : worldMX + 4/zoom;
+            rect(bulbX, worldMY, 10/zoom, 22/zoom, 3/zoom);
+            rectMode(CORNER);
+
+            // 빛을 일정 간격으로 생성
+            if (frameCount % 8 === 0) {
+                let rdx, rdy;
+                if (isInside) { // 안쪽: 초점으로 반사
+                    rdx = p - hx; rdy = 0 - worldMY; 
+                } else {        // 바깥쪽: 초점 반대방향으로 반사
+                    rdx = hx - p; rdy = worldMY - 0; 
+                }
+                let mag = sqrt(rdx*rdx + rdy*rdy);
+                
+                rays.push({
+                    sx: worldMX, sy: worldMY,
+                    hx: hx, hy: worldMY,
+                    rdx: rdx/mag, rdy: rdy/mag,
+                    progress: 0
+                });
+            }
+        }
+
+        // 광선 애니메이션 업데이트 및 그리기
+        let speed = 25 / zoom;
+        let beamLen = 150 / zoom; // 광선의 꼬리 길이
+
+        for (let i = rays.length - 1; i >= 0; i--) {
+            let r = rays[i];
+            r.progress += speed;
+
+            let dist1 = abs(r.sx - r.hx);
+            let head = r.progress;
+            let tail = max(0, r.progress - beamLen);
+
+            // 1. 연한 반사 경로 (미리 보여줌)
+            stroke(255, 204, 0, 40); strokeWeight(2/zoom);
+            line(r.sx, r.sy, r.hx, r.sy);
+            line(r.hx, r.hy, r.hx + r.rdx*3000, r.hy + r.rdy*3000);
+
+            // 2. 실제 날아가는 빔(Beam) 그리기
+            noFill(); stroke(255, 220, 0); strokeWeight(6/zoom);
+            beginShape();
+            
+            // 꼬리 위치
+            if (tail < dist1) vertex(r.sx > r.hx ? r.sx - tail : r.sx + tail, r.sy);
+            else vertex(r.hx + r.rdx * (tail - dist1), r.hy + r.rdy * (tail - dist1));
+            
+            // 반사점 꺾임 (빔이 꺾이는 순간)
+            if (tail < dist1 && head > dist1) vertex(r.hx, r.hy);
+            
+            // 머리 위치
+            if (head < dist1) vertex(r.sx > r.hx ? r.sx - head : r.sx + head, r.sy);
+            else vertex(r.hx + r.rdx * (head - dist1), r.hy + r.rdy * (head - dist1));
+            
+            endShape();
+
+            // 빔 앞머리 반짝임
+            noStroke(); fill(255, 255, 255, 200);
+            if (head < dist1) ellipse(r.sx > r.hx ? r.sx - head : r.sx + head, r.sy, 8/zoom);
+            else ellipse(r.hx + r.rdx * (head - dist1), r.hy + r.rdy * (head - dist1), 8/zoom);
+
+            // 화면 밖으로 나가면 삭제
+            if (tail > dist1 + 4000/zoom) rays.splice(i, 1);
+        }
+    }
+
+    // --- 공통 상호작용 로직 ---
     function mouseReleased() {
         if (mode === 2 && mouseButton === LEFT && !isOverUI()) {
             let worldMX = (mouseX - width/2 - offsetX) / zoom;
             let worldMY = (mouseY - height/2 - offsetY) / zoom;
             let p = 150;
-            
-            // 용어를 클릭한 게 아닐 때만 activePoint 업데이트
             if (!checkHoveredTerm(worldMX, worldMY, p)) {
                 let bx = pow(worldMY, 2) / (4*p);
                 activePoint = { bx: bx, by: worldMY, d: abs(bx - (-p)) };
@@ -218,6 +312,7 @@
         mode = m;
         document.getElementById('tab1').classList.toggle('active', m === 1);
         document.getElementById('tab2').classList.toggle('active', m === 2);
+        document.getElementById('tab3').classList.toggle('active', m === 3);
         updateInstruction();
     }
 
@@ -225,14 +320,17 @@
         let ins = document.getElementById('instructions');
         if (mode === 1) {
             ins.innerHTML = "휠: 확대/축소 | 우클릭 드래그: 이동<br>기준선 위의 <b>초록색 점 A</b>를 위아래로 움직여보세요.";
-        } else {
-            ins.innerHTML = "포물선 위를 클릭하면 <b>길이 정보</b>가 표시됩니다. (다른 곳 클릭 시 이동)<br>준선, 초점, 꼭짓점, 축 부근을 <b>꾹 누르면</b> 이름이 나타납니다.";
+        } else if (mode === 2) {
+            ins.innerHTML = "포물선 위를 클릭하면 <b>길이 정보</b>가 표시됩니다.<br>준선, 초점, 꼭짓점, 축 부근을 <b>꾹 누르면</b> 이름이 나타납니다.";
+        } else if (mode === 3) {
+            ins.innerHTML = "포물선의 <b>안쪽</b>이나 <b>바깥쪽</b> 빈 공간을 <b>꾹 누르고 있어보세요.</b><br>빛이 쏘아지며 반사되는 경로를 확인할 수 있습니다.";
         }
     }
 
     function resetData() {
         tracePoints = [];
         activePoint = null;
+        rays = []; // 3번 모드 빛 삭제
     }
 
     function mouseDragged() { if (mouseButton === RIGHT) { offsetX += mouseX - pmouseX; offsetY += mouseY - pmouseY; } }
