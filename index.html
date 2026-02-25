@@ -1,169 +1,133 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>포물선 작도 웹앱 - 1. 자취</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
-    <style>
-        body { margin: 0; padding: 0; overflow: hidden; background-color: #f8f9fa; font-family: 'Pretendard', sans-serif; }
-        #menu { position: absolute; top: 0; width: 100%; display: flex; justify-content: center; background: rgba(255, 255, 255, 0.9); box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 100; }
-        .tab { padding: 15px 20px; cursor: pointer; border-bottom: 3px solid transparent; font-weight: bold; color: #555; }
-        .tab.active { border-bottom: 3px solid #007bff; color: #007bff; }
-        
-        #controls { position: absolute; top: 70px; left: 20px; z-index: 101; display: flex; flex-direction: column; gap: 10px; }
-        button { padding: 10px 15px; background: #ff3b30; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
-        .info-btn { background: #34c759; cursor: default; }
-        
-        #instructions { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); color: white; padding: 10px 20px; border-radius: 20px; font-size: 14px; pointer-events: none; z-index: 101; }
-    </style>
-</head>
-<body>
+<style>
+    /* 설명창 스타일 */
+    #definition-box { 
+        position: absolute; top: 120px; right: 20px; width: 280px; 
+        background: white; padding: 20px; border-radius: 12px; 
+        box-shadow: 0 4px 15px rgba(0,0,0,0.15); display: none; z-index: 102;
+    }
+    .term-label { font-size: 12px; background: #fff; border: 1px solid #ddd; padding: 2px 5px; border-radius: 4px; }
+</style>
 
 <div id="menu">
-    <div class="tab active">1. 자취 작도</div>
-    <div class="tab" onclick="alert('곧 업데이트될 예정입니다!')">2. 정의 학습</div>
+    <div class="tab" onclick="changeMode(1)">1. 자취 작도</div>
+    <div class="tab active" id="tab2" onclick="changeMode(2)">2. 정의 학습</div>
     <div class="tab" onclick="alert('곧 업데이트될 예정입니다!')">3. 광학 성질</div>
 </div>
 
-<div id="controls">
-    <button onclick="resetTrace()">자취 초기화</button>
-    <button class="info-btn" onclick="resetView()">화면 위치 초기화</button>
+<div id="definition-box">
+    <h3 style="margin-top:0">포물선의 정의</h3>
+    <p style="font-size:14px; line-height:1.6;">
+        평면 위의 한 점 <b>F(초점)</b>와 그 점을 지나지 않는 한 직선 <b>l(준선)</b>에 이르는 거리가 같은 점들의 집합입니다.
+    </p>
+    <button onclick="toggleDef()" style="background:#007bff; width:100%;">이해 완료</button>
 </div>
 
-<div id="instructions">휠: 확대/축소 | 우클릭 드래그: 이동 | 기준선 드래그: 작도</div>
-
 <script>
-    let specificPoint; 
-    let directrixX = 150; 
-    let points = [];      
-    let isDraggingA = false;
-    let ay;               
+    let mode = 1; // 1: 자취, 2: 정의
+    let showTerms = { focus: false, directrix: false, vertex: false, axis: false };
+    let clickPoint = null; // 사용자가 포물선 위를 클릭한 지점
 
-    // 줌 및 이동 관련 변수
-    let zoom = 1.0;
-    let offsetX = 0;
-    let offsetY = 0;
-
-    function setup() {
-        createCanvas(windowWidth, windowHeight);
-        specificPoint = createVector(450, height / 2); 
-        ay = height / 2;
-        // 메뉴 레이어 때문에 우클릭 메뉴 방지
-        document.oncontextmenu = () => false;
+    // 모드 변경 함수
+    function changeMode(m) {
+        mode = m;
+        const tabs = document.querySelectorAll('.tab');
+        tabs.forEach((t, i) => t.classList.toggle('active', i + 1 === m));
+        if(m === 2) {
+            document.getElementById('definition-box').style.display = 'block';
+            resetView();
+        } else {
+            document.getElementById('definition-box').style.display = 'none';
+        }
     }
 
+    function toggleDef() {
+        document.getElementById('definition-box').style.display = 'none';
+    }
+
+    // p5.js의 draw() 함수 내부에 추가될 로직
     function draw() {
-        background(255);
+        // ... (기존 좌표 변환 push/pop 로직) ...
 
-        // --- 좌표 변환 시작 ---
-        push(); 
-        translate(width/2 + offsetX, height/2 + offsetY);
-        scale(zoom);
-        translate(-width/2, -height/2);
-
-        drawGrid();
-
-        // 1. 기준선 L
-        stroke(255, 59, 48);
-        strokeWeight(4 / zoom); // 선 굵기 유지
-        line(directrixX, -height * 5, directrixX, height * 5);
-        
-        fill(255, 59, 48);
-        noStroke();
-        textSize(18 / zoom);
-        text("기준선 L", directrixX + 15 / zoom, 90); 
-        
-        // 2. 특정한 점
-        fill(0, 122, 255);
-        ellipse(specificPoint.x, specificPoint.y, 15 / zoom, 15 / zoom);
-        textAlign(CENTER);
-        text("특정한 점", specificPoint.x, specificPoint.y - 15 / zoom);
-
-        // 3. 좌표 역계산 (화면 좌표 -> 실제 좌표)
-        let worldMouseX = (mouseX - width/2 - offsetX) / zoom + width/2;
-        let worldMouseY = (mouseY - height/2 - offsetY) / zoom + height/2;
-
-        // 4. 점 A 조작 및 자취 로직
-        if (mouseIsPressed && mouseButton === LEFT) {
-            if (abs(worldMouseX - directrixX) < 60 / zoom || isDraggingA) {
-                ay = worldMouseY;
-                isDraggingA = true;
-                
-                // 점 B 계산 및 기록
-                let sx = specificPoint.x;
-                let sy = specificPoint.y;
-                let d = directrixX;
-                let bx = (pow(sx, 2) + pow(ay - sy, 2) - pow(d, 2)) / (2 * (sx - d));
-                let by = ay;
-                points.push({x: bx, y: by});
-            }
+        if (mode === 2) {
+            drawDefinitionMode();
         } else {
-            isDraggingA = false;
+            drawTraceMode(); // 기존 1번 코드
+        }
+    }
+
+    function drawDefinitionMode() {
+        let p = 100; // 초점 거리 (x^2 = 4py 형태를 위해 설정)
+        let fx = width/2 + p;
+        let fy = height/2;
+        let dx = width/2 - p;
+
+        // 1. 축 (Axis)
+        stroke(200);
+        line(0, fy, width, fy);
+        if (showTerms.axis) {
+            fill(100); noStroke(); text("축 (Axis)", width - 60, fy - 10);
         }
 
-        // 5. 현재 점 A 및 연결선
-        let bx = (pow(specificPoint.x, 2) + pow(ay - specificPoint.y, 2) - pow(directrixX, 2)) / (2 * (specificPoint.x - directrixX));
-        
-        fill(40, 167, 69);
-        stroke(255);
-        strokeWeight(2 / zoom);
-        ellipse(directrixX, ay, 14 / zoom, 14 / zoom);
-        
-        stroke(40, 167, 69);
-        line(directrixX, ay, bx, ay); 
-        line(specificPoint.x, specificPoint.y, bx, ay);         
+        // 2. 준선 (Directrix)
+        stroke(255, 59, 48);
+        line(dx, 0, dx, height);
+        if (showTerms.directrix) {
+            fill(255, 59, 48); noStroke(); text("준선 l", dx - 30, 100);
+        }
 
-        // 6. 거리 텍스트
-        let distVal = abs(bx - directrixX);
-        fill(0);
-        noStroke();
-        textSize(14 / zoom);
-        text("길이: " + distVal.toFixed(2), (directrixX + bx) / 2, ay - 10 / zoom);
-        text("길이: " + distVal.toFixed(2), (specificPoint.x + bx) / 2, (specificPoint.y + ay) / 2 - 10 / zoom);
-
-        // 7. 자취 그리기
-        noFill();
-        stroke(150, 150, 150, 200);
-        strokeWeight(3 / zoom);
+        // 3. 포물선 본체
+        noFill(); stroke(0); strokeWeight(2);
         beginShape();
-        for (let p of points) vertex(p.x, p.y);
+        for (let y = 0; y < height; y += 5) {
+            let x = pow(y - fy, 2) / (4 * p) + (width/2);
+            vertex(x, y);
+        }
         endShape();
 
-        fill(255, 59, 48);
-        ellipse(bx, ay, 12 / zoom, 12 / zoom);
-        
-        pop(); 
-        // --- 좌표 변환 끝 ---
-    }
+        // 4. 초점 F
+        fill(0, 122, 255);
+        ellipse(fx, fy, 12, 12);
+        if (showTerms.focus) {
+            fill(0, 122, 255); noStroke(); text("초점 F", fx, fy - 15);
+        }
 
-    // 화면 이동 (우클릭 드래그)
-    function mouseDragged() {
-        if (mouseButton === RIGHT) {
-            offsetX += mouseX - pmouseX;
-            offsetY += mouseY - pmouseY;
+        // 5. 꼭짓점
+        fill(0);
+        ellipse(width/2, fy, 8, 8);
+        if (showTerms.vertex) {
+            text("꼭짓점", width/2, fy + 25);
+        }
+
+        // 6. 클릭 상호작용 (거리 표시)
+        if (mouseIsPressed && !isOverMenu()) {
+            // 마우스 위치에서 가장 가까운 포물선 위의 점 계산
+            let my = (mouseY - height/2 - offsetY) / zoom + height/2;
+            let mx = pow(my - fy, 2) / (4 * p) + (width/2);
+            
+            stroke(34, 197, 94);
+            line(mx, my, dx, my); // 준선까지 거리
+            line(mx, my, fx, fy); // 초점까지 거리
+            
+            fill(34, 197, 94); noStroke();
+            let d = abs(mx - dx);
+            text("d = " + d.toFixed(1), (mx + dx)/2, my - 10);
+            text("d = " + d.toFixed(1), (mx + fx)/2, (my + fy)/2 - 10);
+            
+            ellipse(mx, my, 10, 10);
         }
     }
 
-    // 확대 축소 (휠)
-    function mouseWheel(event) {
-        let zoomAmount = -event.delta * 0.001;
-        zoom = constrain(zoom + zoomAmount, 0.1, 5);
-        return false; // 페이지 스크롤 방지
+    // 마우스 클릭 시 정보 공개
+    function mouseClicked() {
+        if (mode === 2) {
+            let wx = (mouseX - width/2 - offsetX) / zoom + width/2;
+            let wy = (mouseY - height/2 - offsetY) / zoom + height/2;
+            
+            // 각 요소 근처를 클릭하면 정보 표시
+            if (dist(wx, wy, width/2 + 100, height/2) < 30) showTerms.focus = true;
+            if (abs(wx - (width/2 - 100)) < 20) showTerms.directrix = true;
+            if (dist(wx, wy, width/2, height/2) < 30) showTerms.vertex = true;
+            if (abs(wy - height/2) < 20) showTerms.axis = true;
+        }
     }
-
-    function resetTrace() { points = []; }
-    function resetView() { zoom = 1.0; offsetX = 0; offsetY = 0; }
-
-    function drawGrid() {
-        stroke(240);
-        strokeWeight(1 / zoom);
-        for (let i = -width * 5; i < width * 5; i += 40) line(i, -height * 5, i, height * 5);
-        for (let j = -height * 5; j < height * 5; j += 40) line(-width * 5, j, width * 5, j);
-    }
-
-    function windowResized() { resizeCanvas(windowWidth, windowHeight); }
 </script>
-
-</body>
-</html>
