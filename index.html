@@ -15,7 +15,7 @@
         button { padding: 10px 15px; background: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         button.reset { background: #ff3b30; }
         
-        #instructions { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 12px 24px; border-radius: 30px; font-size: 14px; pointer-events: none; z-index: 1001; text-align: center; line-height: 1.4; }
+        #instructions { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 12px 24px; border-radius: 30px; font-size: 14px; pointer-events: none; z-index: 1001; text-align: center; line-height: 1.5; }
     </style>
 </head>
 <body>
@@ -47,8 +47,8 @@
     let tracePoints = [];
     let isDraggingA = false;
 
-    // 2번 모드 데이터
-    let clickedDefinitions = []; // 클릭해서 남겨진 점들
+    // 2번 모드 데이터 (점 하나만 유지)
+    let activePoint = null; 
 
     function setup() {
         createCanvas(windowWidth, windowHeight);
@@ -76,17 +76,17 @@
         let worldMX = (mouseX - width/2 - offsetX) / zoom;
         let worldMY = (mouseY - height/2 - offsetY) / zoom;
 
-        // 1. 기준선 L
+        // 기준선 L
         stroke(255, 59, 48); strokeWeight(4/zoom);
         line(directrixX, -height*5, directrixX, height*5);
-        fill(255, 59, 48); noStroke(); textSize(18/zoom);
+        fill(255, 59, 48); noStroke(); textSize(18/zoom); textAlign(LEFT);
         text("기준선 L", directrixX - 80/zoom, -200/zoom);
 
-        // 2. 특정한 점
+        // 특정한 점
         fill(0, 122, 255); ellipse(specificPoint.x, specificPoint.y, 15/zoom);
-        text("특정한 점", specificPoint.x, specificPoint.y - 20/zoom);
+        textAlign(CENTER); text("특정한 점", specificPoint.x, specificPoint.y - 20/zoom);
 
-        // 3. 드래그 감지 및 점 A 표시
+        // 드래그 감지
         if (mouseIsPressed && mouseButton === LEFT && !isOverUI()) {
             if (abs(worldMX - directrixX) < 60/zoom || isDraggingA) {
                 ay = worldMY;
@@ -96,24 +96,23 @@
             }
         } else { isDraggingA = false; }
 
-        // 점 A (기준선 위) - 항상 보이도록 강조
+        // 점 A
         stroke(255); strokeWeight(2/zoom); fill(40, 167, 69);
         ellipse(directrixX, ay, 20/zoom); 
-        noStroke(); fill(0); text("점 A", directrixX - 30/zoom, ay + 5/zoom);
+        noStroke(); fill(0); textAlign(RIGHT); text("점 A", directrixX - 15/zoom, ay + 5/zoom);
 
-        // 4. 점 B와 거리 표시
+        // 점 B와 거리 표시
         let bx = (pow(specificPoint.x, 2) + pow(ay - specificPoint.y, 2) - pow(directrixX, 2)) / (2 * (specificPoint.x - directrixX));
         stroke(40, 167, 69); strokeWeight(2/zoom);
         line(directrixX, ay, bx, ay);
         line(specificPoint.x, specificPoint.y, bx, ay);
         
-        // 거리 텍스트 표시
         let d = abs(bx - directrixX);
-        fill(40, 167, 69); noStroke(); textSize(14/zoom);
+        fill(40, 167, 69); noStroke(); textSize(14/zoom); textAlign(CENTER);
         text("길이: " + d.toFixed(1), (directrixX + bx)/2, ay - 10/zoom);
         text("길이: " + d.toFixed(1), (specificPoint.x + bx)/2, (specificPoint.y + ay)/2 - 10/zoom);
         
-        // 5. 자취 그리기
+        // 자취
         noFill(); stroke(150, 150, 150, 150); strokeWeight(3/zoom);
         beginShape();
         for (let p of tracePoints) vertex(p.x, p.y);
@@ -128,56 +127,85 @@
         let worldMX = (mouseX - width/2 - offsetX) / zoom;
         let worldMY = (mouseY - height/2 - offsetY) / zoom;
 
-        // 기본 요소: 축, 준선, 포물선
-        stroke(220); line(-height*5, 0, height*5, 0); // 대칭축
-        stroke(255, 59, 48); line(-p, -height*5, -p, height*5); // 준선
+        // 대칭축, 준선, 포물선
+        stroke(220); line(-height*5, 0, height*5, 0); 
+        stroke(255, 59, 48); line(-p, -height*5, -p, height*5); 
         noFill(); stroke(0); strokeWeight(2/zoom);
         beginShape();
         for (let y = -1000; y < 1000; y += 10) vertex(pow(y, 2)/(4*p), y);
         endShape();
 
-        // 1. 누르고 있을 때만 용어 표시 (Hover/Press 효과)
+        // 요소 텍스트 표시 (마우스 누르고 있을 때)
         if (mouseIsPressed && !isOverUI()) {
-            fill(0); noStroke(); textSize(16/zoom);
-            if (abs(worldMY) < 30/zoom) text("대칭축", 300/zoom, 30/zoom);
-            if (abs(worldMX - (-p)) < 40/zoom) text("준선", -p - 50/zoom, -200/zoom);
+            fill(0); noStroke(); textSize(16/zoom); textAlign(CENTER);
+            if (abs(worldMY) < 30/zoom) text("대칭축", 300/zoom, -10/zoom);
+            if (abs(worldMX - (-p)) < 40/zoom) text("준선", -p - 50/zoom, -150/zoom);
             if (dist(worldMX, worldMY, p, 0) < 40/zoom) text("초점", p, -25/zoom);
             if (dist(worldMX, worldMY, 0, 0) < 40/zoom) text("꼭짓점", 0, 35/zoom);
         }
 
-        // 초점 점 표시
+        // 꼭짓점 항상 점 찍기
+        fill(0); noStroke(); ellipse(0, 0, 12/zoom);
+        // 초점 점 찍기
         fill(0, 122, 255); ellipse(p, 0, 15/zoom);
 
-        // 2. 클릭된 기록(점과 선) 유지하여 그리기
-        for (let item of clickedDefinitions) {
-            stroke(34, 197, 94, 150); strokeWeight(2/zoom);
-            line(item.bx, item.by, -p, item.by);
-            line(item.bx, item.by, p, 0);
-            fill(34, 197, 94); noStroke();
-            ellipse(item.bx, item.by, 8/zoom);
-            textSize(12/zoom);
-            text(item.d.toFixed(1), (item.bx-p)/2, item.by - 5/zoom);
+        // 누르고 있는 곳 계산 또는 저장된 activePoint 불러오기
+        let targetX = null, targetY = null, targetD = null;
+        if (mouseIsPressed && mouseButton === LEFT && !isOverUI()) {
+            targetY = worldMY;
+            targetX = pow(targetY, 2) / (4*p);
+            targetD = abs(targetX - (-p));
+        } else if (activePoint) {
+            targetX = activePoint.bx;
+            targetY = activePoint.by;
+            targetD = activePoint.d;
         }
 
-        // 3. 현재 누르고 있는 위치 실시간 표시
-        if (mouseIsPressed && !isOverUI()) {
-            let bx = pow(worldMY, 2) / (4*p);
+        // 선, 거리 텍스트, 길이 같음 기호(//) 표시
+        if (targetX !== null) {
             stroke(34, 197, 94); strokeWeight(3/zoom);
-            line(bx, worldMY, -p, worldMY);
-            line(bx, worldMY, p, 0);
-            let d = abs(bx - (-p));
+            line(targetX, targetY, -p, targetY); // 준선까지
+            line(targetX, targetY, p, 0);       // 초점까지
+            
+            // 길이 같음 표시 (||)
+            drawTickMarks(targetX, targetY, -p, targetY);
+            drawTickMarks(targetX, targetY, p, 0);
+
+            // 포물선 위의 점
             fill(34, 197, 94); noStroke();
-            text("길이: " + d.toFixed(1), (bx-p)/2, worldMY - 10/zoom);
+            ellipse(targetX, targetY, 12/zoom);
+
+            // 두 곳에 모두 거리 표시
+            fill(0); textSize(14/zoom); textAlign(CENTER);
+            text("길이: " + targetD.toFixed(1), (targetX - p)/2, targetY - 15/zoom);
+            text("길이: " + targetD.toFixed(1), (targetX + p)/2, targetY/2 - 15/zoom);
         }
     }
 
-    // --- 마우스 상호작용 ---
+    // 선분 중앙에 '||' 길이 같음 기호 그리는 함수
+    function drawTickMarks(x1, y1, x2, y2) {
+        let midX = (x1 + x2) / 2;
+        let midY = (y1 + y2) / 2;
+        let angle = atan2(y2 - y1, x2 - x1);
+        
+        push();
+        translate(midX, midY);
+        rotate(angle);
+        stroke(0); strokeWeight(2/zoom);
+        let gap = 3/zoom;
+        let len = 6/zoom;
+        line(-gap, -len, -gap, len);
+        line(gap, -len, gap, len);
+        pop();
+    }
+
     function mouseReleased() {
-        if (mode === 2 && !isOverUI()) {
+        if (mode === 2 && mouseButton === LEFT && !isOverUI()) {
             let worldMY = (mouseY - height/2 - offsetY) / zoom;
             let p = 150;
             let bx = pow(worldMY, 2) / (4*p);
-            clickedDefinitions.push({ bx: bx, by: worldMY, d: abs(bx - (-p)) });
+            // 클릭할 때마다 하나의 점 데이터만 덮어씌움 (기존 점 사라짐)
+            activePoint = { bx: bx, by: worldMY, d: abs(bx - (-p)) };
         }
     }
 
@@ -190,18 +218,21 @@
 
     function updateInstruction() {
         let ins = document.getElementById('instructions');
-        if (mode === 1) ins.innerHTML = "기준선 위의 <b>초록색 점 A</b>를 위아래로 움직여보세요.<br>특정한 점과 기준선 사이의 거리가 같은 점 B의 자취가 그려집니다.";
-        else ins.innerHTML = "포물선 위를 클릭하면 <b>길이 정보가 기록</b>됩니다.<br>준선, 초점, 꼭짓점, 축 부근을 <b>꾹 누르면</b> 이름이 나타납니다.";
+        if (mode === 1) {
+            ins.innerHTML = "휠: 확대/축소 | 우클릭 드래그: 이동<br>기준선 위의 <b>초록색 점 A</b>를 위아래로 움직여보세요.";
+        } else {
+            ins.innerHTML = "포물선 위를 클릭하면 <b>길이 정보</b>가 표시됩니다. (다른 곳 클릭 시 이동)<br>준선, 초점, 꼭짓점, 축 부근을 <b>꾹 누르면</b> 이름이 나타납니다.";
+        }
     }
 
     function resetData() {
         tracePoints = [];
-        clickedDefinitions = [];
+        activePoint = null;
     }
 
     function mouseDragged() { if (mouseButton === RIGHT) { offsetX += mouseX - pmouseX; offsetY += mouseY - pmouseY; } }
     function mouseWheel(event) { zoom = constrain(zoom - event.delta * 0.001, 0.2, 4); return false; }
-    function isOverUI() { return mouseY < 65; }
+    function isOverUI() { return mouseY < 65 || (mouseX < 180 && mouseY < 150); }
     function resetView() { zoom = 1.0; offsetX = 0; offsetY = 0; }
     function drawGrid() {
         stroke(240); strokeWeight(1/zoom);
