@@ -3,15 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>포물선 인터랙티브 웹앱</title>
+    <title>포물선 인터랙티브 웹앱 by ET</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #f8f9fa; font-family: 'Pretendard', sans-serif; }
-        #menu { position: absolute; top: 0; width: 100%; display: flex; justify-content: center; background: rgba(255, 255, 255, 0.95); box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 1000; }
+        
+        /* 메인 타이틀 디자인 */
+        #header { position: absolute; top: 0; width: 100%; background: #1a1a2e; color: white; text-align: center; padding: 12px 0; font-size: 24px; font-weight: 800; z-index: 1002; letter-spacing: 1px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+        #header span { color: #00d2ff; font-size: 16px; font-weight: normal; margin-left: 8px; }
+        
+        #menu { position: absolute; top: 52px; width: 100%; display: flex; justify-content: center; background: rgba(255, 255, 255, 0.95); box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 1000; }
         .tab { padding: 15px 25px; cursor: pointer; border-bottom: 3px solid transparent; font-weight: bold; color: #555; transition: 0.3s; }
         .tab.active { border-bottom: 3px solid #007bff; color: #007bff; }
         
-        #ui-layer { position: absolute; top: 70px; left: 20px; z-index: 1001; display: flex; flex-direction: column; gap: 10px; }
+        #ui-layer { position: absolute; top: 120px; left: 20px; z-index: 1001; display: flex; flex-direction: column; gap: 10px; }
         button { padding: 10px 15px; background: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         button.reset { background: #ff3b30; }
         
@@ -19,6 +24,8 @@
     </style>
 </head>
 <body>
+
+<div id="header">포물선의 모든 것<span>by ET</span></div>
 
 <div id="menu">
     <div id="tab1" class="tab active" onclick="setMode(1)">1. 자취 작도</div>
@@ -119,7 +126,6 @@
         fill(255, 59, 48); ellipse(bx, ay, 10/zoom);
     }
 
-    // --- 2번 영역 확인 함수 ---
     function checkHoveredTerm(wx, wy, p) {
         if (dist(wx, wy, p, 0) < 40/zoom) return "focus";       
         if (dist(wx, wy, 0, 0) < 40/zoom) return "vertex";      
@@ -134,15 +140,9 @@
         let worldMX = (mouseX - width/2 - offsetX) / zoom;
         let worldMY = (mouseY - height/2 - offsetY) / zoom;
 
-        // 대칭축 (두께를 굵게 4/zoom, 색상 진하게 설정)
-        stroke(180); strokeWeight(4/zoom); 
-        line(-height*5, 0, height*5, 0); 
+        stroke(180); strokeWeight(4/zoom); line(-height*5, 0, height*5, 0); 
+        stroke(255, 59, 48); strokeWeight(2/zoom); line(-p, -height*5, -p, height*5); 
         
-        // 준선
-        stroke(255, 59, 48); strokeWeight(2/zoom);
-        line(-p, -height*5, -p, height*5); 
-        
-        // 포물선
         noFill(); stroke(0); strokeWeight(2/zoom);
         beginShape();
         for (let y = -1000; y < 1000; y += 10) vertex(pow(y, 2)/(4*p), y);
@@ -198,6 +198,20 @@
         pop();
     }
 
+    // 다중 경로를 따라가는 점 반환 함수 (레이저 추적용)
+    function getPosAlongPath(path, dists, d) {
+        if (d <= 0) return path[0];
+        let currentDist = 0;
+        for (let i = 0; i < dists.length; i++) {
+            if (d <= currentDist + dists[i]) {
+                let t = (d - currentDist) / dists[i];
+                return p5.Vector.lerp(path[i], path[i+1], t);
+            }
+            currentDist += dists[i];
+        }
+        return path[path.length - 1];
+    }
+
     // --- 3번: 광학 성질 모드 ---
     function runMode3() {
         let p = 150; 
@@ -208,19 +222,20 @@
         stroke(200); strokeWeight(2/zoom); drawingContext.setLineDash([10, 10]);
         line(-height*5, 0, height*5, 0); drawingContext.setLineDash([]);
 
-        // 포물선 반사경 (두껍게)
+        // 포물선 반사경
         noFill(); stroke(50, 50, 200); strokeWeight(4/zoom);
         beginShape();
-        for (let y = -1200; y < 1200; y += 10) vertex(pow(y, 2)/(4*p), y);
+        for (let y = -1500; y < 1500; y += 10) vertex(pow(y, 2)/(4*p), y);
         endShape();
 
         // 초점
         fill(0, 122, 255); noStroke(); ellipse(p, 0, 15/zoom);
         textSize(16/zoom); textAlign(CENTER); fill(0); text("초점(F)", p, -20/zoom);
 
-        // 상호작용: 손전등 빛 쏘기
+        // 상호작용: 손전등 빛 쏘기 및 원리 설명
         if (mouseIsPressed && mouseButton === LEFT && !isOverUI()) {
             let hx = pow(worldMY, 2) / (4*p);
+            let hy = worldMY;
             let isInside = worldMX > hx;
 
             // 손전등 그래픽
@@ -232,70 +247,106 @@
             rect(bulbX, worldMY, 10/zoom, 22/zoom, 3/zoom);
             rectMode(CORNER);
 
-            // 빛을 일정 간격으로 생성
-            if (frameCount % 8 === 0) {
-                let rdx, rdy;
-                if (isInside) { // 안쪽: 초점으로 반사
-                    rdx = p - hx; rdy = 0 - worldMY; 
-                } else {        // 바깥쪽: 초점 반대방향으로 반사
-                    rdx = hx - p; rdy = worldMY - 0; 
-                }
-                let mag = sqrt(rdx*rdx + rdy*rdy);
+            // [원리 설명] 접선(초록)과 법선(주황) 그리기
+            if (abs(hy) > 1) { // 꼭짓점이 아닐 때
+                let mt = 2 * p / hy;     // 접선 기울기
+                let mn = -hy / (2 * p);  // 법선 기울기 (수직)
                 
-                rays.push({
-                    sx: worldMX, sy: worldMY,
-                    hx: hx, hy: worldMY,
-                    rdx: rdx/mag, rdy: rdy/mag,
-                    progress: 0
-                });
+                let vt = createVector(1, mt).normalize().mult(300/zoom);
+                stroke(40, 167, 69, 150); strokeWeight(2/zoom); drawingContext.setLineDash([8, 8]);
+                line(hx - vt.x, hy - vt.y, hx + vt.x, hy + vt.y); // 접선
+                
+                let vn = createVector(1, mn).normalize().mult(200/zoom);
+                stroke(255, 136, 0, 200); strokeWeight(3/zoom);
+                line(hx - vn.x, hy - vn.y, hx + vn.x, hy + vn.y); // 법선
+                drawingContext.setLineDash([]);
+
+                // 텍스트 설명
+                fill(255, 100, 0); noStroke(); textSize(14/zoom); textAlign(LEFT);
+                text("주황색 점선(법선) 기준", hx + 10/zoom, hy - 30/zoom);
+                text("입사각 = 반사각", hx + 10/zoom, hy - 15/zoom);
+            }
+
+            // 빛을 일정 간격으로 생성하여 경로 추적
+            if (frameCount % 8 === 0) {
+                let pts = [];
+                pts.push(createVector(worldMX, worldMY));
+                pts.push(createVector(hx, worldMY)); // 1차 충돌 지점
+
+                if (isInside) { 
+                    if (abs(worldMY) < 1) { 
+                        // 꼭짓점 충돌 시 다시 왔던 길로 되돌아감
+                        pts.push(createVector(worldMX + 2000, worldMY));
+                    } else {
+                        // 1. 초점 통과
+                        let focus = createVector(p, 0);
+                        pts.push(focus);
+                        // 2. 반대편 포물선 충돌 (2차 충돌)
+                        let hy2 = -4 * p * p / worldMY;
+                        let hx2 = pow(hy2, 2) / (4*p);
+                        pts.push(createVector(hx2, hy2));
+                        // 3. 축에 평행하게 다시 밖으로 나감
+                        pts.push(createVector(hx2 + 2500, hy2)); 
+                    }
+                } else {        
+                    // 바깥쪽: 초점에서 멀어지는 방향으로 반사 (볼록거울 원리)
+                    let dirX = hx - p; let dirY = worldMY - 0; 
+                    let mag = sqrt(dirX*dirX + dirY*dirY);
+                    pts.push(createVector(hx + (dirX/mag)*2500, worldMY + (dirY/mag)*2500));
+                }
+
+                // 경로별 거리 계산
+                let dists = [];
+                let totalDist = 0;
+                for(let i=0; i<pts.length-1; i++) {
+                    let d = p5.Vector.dist(pts[i], pts[i+1]);
+                    dists.push(d);
+                    totalDist += d;
+                }
+
+                rays.push({ path: pts, dists: dists, totalDist: totalDist, progress: 0 });
             }
         }
 
         // 광선 애니메이션 업데이트 및 그리기
         let speed = 25 / zoom;
-        let beamLen = 150 / zoom; // 광선의 꼬리 길이
+        let beamLen = 150 / zoom; // 빔의 길이
 
         for (let i = rays.length - 1; i >= 0; i--) {
             let r = rays[i];
             r.progress += speed;
 
-            let dist1 = abs(r.sx - r.hx);
+            // 1. 연한 전체 반사 경로 (미리 보여줌)
+            stroke(255, 204, 0, 40); strokeWeight(2/zoom);
+            for(let j=0; j<r.path.length-1; j++) {
+                line(r.path[j].x, r.path[j].y, r.path[j+1].x, r.path[j+1].y);
+            }
+
+            // 2. 꼬리를 물고 날아가는 레이저 빔 그리기
             let head = r.progress;
             let tail = max(0, r.progress - beamLen);
 
-            // 1. 연한 반사 경로 (미리 보여줌)
-            stroke(255, 204, 0, 40); strokeWeight(2/zoom);
-            line(r.sx, r.sy, r.hx, r.sy);
-            line(r.hx, r.hy, r.hx + r.rdx*3000, r.hy + r.rdy*3000);
-
-            // 2. 실제 날아가는 빔(Beam) 그리기
             noFill(); stroke(255, 220, 0); strokeWeight(6/zoom);
             beginShape();
-            
-            // 꼬리 위치
-            if (tail < dist1) vertex(r.sx > r.hx ? r.sx - tail : r.sx + tail, r.sy);
-            else vertex(r.hx + r.rdx * (tail - dist1), r.hy + r.rdy * (tail - dist1));
-            
-            // 반사점 꺾임 (빔이 꺾이는 순간)
-            if (tail < dist1 && head > dist1) vertex(r.hx, r.hy);
-            
-            // 머리 위치
-            if (head < dist1) vertex(r.sx > r.hx ? r.sx - head : r.sx + head, r.sy);
-            else vertex(r.hx + r.rdx * (head - dist1), r.hy + r.rdy * (head - dist1));
-            
+            let step = 10 / zoom;
+            // 꼬리부터 머리까지 경로를 따라 점을 찍어서 선으로 연결 (꺾임 자연스럽게 처리)
+            for (let d = tail; d <= head; d += step) {
+                let pos = getPosAlongPath(r.path, r.dists, d);
+                vertex(pos.x, pos.y);
+            }
+            let headPos = getPosAlongPath(r.path, r.dists, head);
+            vertex(headPos.x, headPos.y);
             endShape();
 
             // 빔 앞머리 반짝임
             noStroke(); fill(255, 255, 255, 200);
-            if (head < dist1) ellipse(r.sx > r.hx ? r.sx - head : r.sx + head, r.sy, 8/zoom);
-            else ellipse(r.hx + r.rdx * (head - dist1), r.hy + r.rdy * (head - dist1), 8/zoom);
+            ellipse(headPos.x, headPos.y, 8/zoom);
 
-            // 화면 밖으로 나가면 삭제
-            if (tail > dist1 + 4000/zoom) rays.splice(i, 1);
+            // 화면 밖으로 완전히 나가면 배열에서 삭제
+            if (tail > r.totalDist) rays.splice(i, 1);
         }
     }
 
-    // --- 공통 상호작용 로직 ---
     function mouseReleased() {
         if (mode === 2 && mouseButton === LEFT && !isOverUI()) {
             let worldMX = (mouseX - width/2 - offsetX) / zoom;
@@ -323,19 +374,14 @@
         } else if (mode === 2) {
             ins.innerHTML = "포물선 위를 클릭하면 <b>길이 정보</b>가 표시됩니다.<br>준선, 초점, 꼭짓점, 축 부근을 <b>꾹 누르면</b> 이름이 나타납니다.";
         } else if (mode === 3) {
-            ins.innerHTML = "포물선의 <b>안쪽</b>이나 <b>바깥쪽</b> 빈 공간을 <b>꾹 누르고 있어보세요.</b><br>빛이 쏘아지며 반사되는 경로를 확인할 수 있습니다.";
+            ins.innerHTML = "빈 공간을 <b>꾹 누르고 있어보세요.</b> 빛의 이중 반사를 확인할 수 있습니다.<br>접선과 법선을 통해 <b>입사각=반사각</b> 원리를 관찰하세요.";
         }
     }
 
-    function resetData() {
-        tracePoints = [];
-        activePoint = null;
-        rays = []; // 3번 모드 빛 삭제
-    }
-
+    function resetData() { tracePoints = []; activePoint = null; rays = []; }
     function mouseDragged() { if (mouseButton === RIGHT) { offsetX += mouseX - pmouseX; offsetY += mouseY - pmouseY; } }
     function mouseWheel(event) { zoom = constrain(zoom - event.delta * 0.001, 0.2, 4); return false; }
-    function isOverUI() { return mouseY < 65 || (mouseX < 180 && mouseY < 150); }
+    function isOverUI() { return mouseY < 110 || (mouseX < 180 && mouseY < 180); }
     function resetView() { zoom = 1.0; offsetX = 0; offsetY = 0; }
     function drawGrid() {
         stroke(240); strokeWeight(1/zoom);
