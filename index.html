@@ -30,10 +30,10 @@
     <button onclick="resetTrace()">자취 초기화</button>
 </div>
 
-<div id="instructions">준선 위의 점 A를 드래그하여 자취를 만들어보세요!</div>
+<div id="instructions">기준선 위의 점 A를 드래그하여 자취를 만들어보세요!</div>
 
 <script>
-    let focusF;
+    let specificPoint; // 특정한 점 (기존 초점)
     let directrixX = 150; 
     let points = [];      
     let isDragging = false;
@@ -41,7 +41,8 @@
 
     function setup() {
         createCanvas(windowWidth, windowHeight);
-        focusF = createVector(450, height / 2); 
+        // 특정한 점의 위치 설정
+        specificPoint = createVector(450, height / 2); 
         ay = height / 2;
     }
 
@@ -49,25 +50,27 @@
         background(255);
         drawGrid();
 
-        // 1. 준선 L 그리기 (빨간색)
+        // 1. 기준선 L 그리기 (빨간색)
         stroke(255, 59, 48);
         strokeWeight(4);
         line(directrixX, 0, directrixX, height);
+        
+        // 이름표가 메뉴와 겹치지 않게 y 좌표를 80으로 조정
         fill(255, 59, 48);
         noStroke();
         textSize(18);
-        text("준선 L", directrixX - 40, 30);
+        textAlign(LEFT);
+        text("기준선 L", directrixX + 15, 90); 
         
-        // 2. 초점 F 그리기 (파란색)
+        // 2. 특정한 점 그리기 (파란색)
         fill(0, 122, 255);
         noStroke();
-        ellipse(focusF.x, focusF.y, 15, 15);
+        ellipse(specificPoint.x, specificPoint.y, 15, 15);
         textAlign(CENTER);
-        text("초점 F", focusF.x, focusF.y - 15);
+        text("특정한 점", specificPoint.x, specificPoint.y - 15);
 
-        // 3. 드래그 로직
+        // 3. 드래그 로직 (메뉴 아래부터 드래그 가능)
         if (mouseIsPressed) {
-            // 메뉴바나 버튼 영역 제외하고 드래그 감지
             if (mouseY > 60 && (abs(mouseX - directrixX) < 60 || isDragging)) {
                 ay = constrain(mouseY, 50, height - 50);
                 isDragging = true;
@@ -76,35 +79,37 @@
             isDragging = false;
         }
 
-        // 4. 점 A (준선 위)
+        // 4. 점 A (기준선 위)
         fill(40, 167, 69);
         stroke(255);
         strokeWeight(2);
         ellipse(directrixX, ay, 14, 14);
         noStroke();
         fill(0);
-        text("A", directrixX - 25, ay + 5);
+        textAlign(RIGHT);
+        text("A", directrixX - 15, ay + 5);
 
         // 5. 점 B 계산
-        let fx = focusF.x;
-        let fy = focusF.y;
+        let sx = specificPoint.x;
+        let sy = specificPoint.y;
         let d = directrixX;
-        let bx = (pow(fx, 2) + pow(ay - fy, 2) - pow(d, 2)) / (2 * (fx - d));
+        let bx = (pow(sx, 2) + pow(ay - sy, 2) - pow(d, 2)) / (2 * (sx - d));
         let by = ay;
 
         // 6. 연결선 및 거리 표시
         stroke(40, 167, 69);
         strokeWeight(2);
         line(directrixX, ay, bx, by); 
-        line(fx, fy, bx, by);         
+        line(sx, sy, bx, by);         
 
         // 거리 텍스트
         let distVal = abs(bx - directrixX);
         fill(0);
         noStroke();
         textSize(14);
+        textAlign(CENTER);
         text("길이: " + distVal.toFixed(2), (directrixX + bx) / 2, ay - 10);
-        text("길이: " + distVal.toFixed(2), (fx + bx) / 2, (fy + by) / 2 - 10);
+        text("길이: " + distVal.toFixed(2), (sx + bx) / 2, (sy + by) / 2 - 10);
 
         // 7. 자취 기록 및 그리기
         if (isDragging) {
@@ -127,7 +132,8 @@
         ellipse(bx, by, 12, 12);
         noStroke();
         fill(255, 59, 48);
-        text("점 B (자취)", bx + 40, by + 5);
+        textAlign(LEFT);
+        text("점 B (자취)", bx + 15, by + 5);
     }
 
     function resetTrace() {
