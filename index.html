@@ -70,4 +70,361 @@
 
     function setup() {
         createCanvas(windowWidth, windowHeight);
-        specificPoint =
+        specificPoint = createVector(150, 0); 
+        document.oncontextmenu = () => false;
+        updateInstruction();
+    }
+
+    function draw() {
+        background(255);
+        
+        push();
+        translate(width/2 + offsetX, height/2 + offsetY);
+        scale(zoom);
+        drawGrid();
+
+        if (mode === 1) runMode1();
+        else if (mode === 2) runMode2();
+        else if (mode === 3) runMode3();
+        
+        pop();
+    }
+
+    // --- 1번: 자취 작도 모드 ---
+    function runMode1() {
+        let worldMX = (mouseX - width/2 - offsetX) / zoom;
+        let worldMY = (mouseY - height/2 - offsetY) / zoom;
+
+        stroke(255, 59, 48); strokeWeight(4/zoom);
+        line(directrixX, -height*5, directrixX, height*5);
+        fill(255, 59, 48); noStroke(); textSize(18/zoom); textAlign(LEFT);
+        text("기준선 L", directrixX - 80/zoom, -200/zoom);
+
+        fill(0, 122, 255); ellipse(specificPoint.x, specificPoint.y, 15/zoom);
+        textAlign(CENTER); text("특정한 점", specificPoint.x, specificPoint.y - 20/zoom);
+
+        if (mouseIsPressed && mouseButton === LEFT && !isOverUI()) {
+            if (abs(worldMX - directrixX) < 60/zoom || isDraggingA) {
+                ay = worldMY;
+                isDraggingA = true;
+                let bx = (pow(specificPoint.x, 2) + pow(ay - specificPoint.y, 2) - pow(directrixX, 2)) / (2 * (specificPoint.x - directrixX));
+                tracePoints.push({x: bx, y: ay});
+            }
+        } else { isDraggingA = false; }
+
+        stroke(255); strokeWeight(2/zoom); fill(40, 167, 69);
+        ellipse(directrixX, ay, 20/zoom); 
+        noStroke(); fill(0); textAlign(RIGHT); text("점 A", directrixX - 15/zoom, ay + 5/zoom);
+
+        let bx = (pow(specificPoint.x, 2) + pow(ay - specificPoint.y, 2) - pow(directrixX, 2)) / (2 * (specificPoint.x - directrixX));
+        stroke(40, 167, 69); strokeWeight(2/zoom);
+        line(directrixX, ay, bx, ay);
+        line(specificPoint.x, specificPoint.y, bx, ay);
+        
+        let d = abs(bx - directrixX);
+        fill(40, 167, 69); noStroke(); textSize(14/zoom); textAlign(CENTER);
+        text("길이: " + d.toFixed(1), (directrixX + bx)/2, ay - 10/zoom);
+        text("길이: " + d.toFixed(1), (specificPoint.x + bx)/2, (specificPoint.y + ay)/2 - 10/zoom);
+        
+        noFill(); stroke(150, 150, 150, 150); strokeWeight(3/zoom);
+        beginShape();
+        for (let p of tracePoints) vertex(p.x, p.y);
+        endShape();
+        
+        fill(255, 59, 48); ellipse(bx, ay, 10/zoom);
+    }
+
+    function checkHoveredTerm(wx, wy, p) {
+        if (dist(wx, wy, p, 0) < 40/zoom) return "focus";       
+        if (dist(wx, wy, 0, 0) < 40/zoom) return "vertex";      
+        if (abs(wx - (-p)) < 40/zoom) return "directrix";       
+        if (abs(wy) < 30/zoom && wx > 40/zoom) return "axis";   
+        return null;
+    }
+
+    // --- 2번: 정의 학습 모드 ---
+    function runMode2() {
+        let p = 150; 
+        let worldMX = (mouseX - width/2 - offsetX) / zoom;
+        let worldMY = (mouseY - height/2 - offsetY) / zoom;
+
+        stroke(180); strokeWeight(4/zoom); line(-height*5, 0, height*5, 0); 
+        stroke(255, 59, 48); strokeWeight(2/zoom); line(-p, -height*5, -p, height*5); 
+        
+        noFill(); stroke(0); strokeWeight(2/zoom);
+        beginShape();
+        for (let y = -1000; y < 1000; y += 10) vertex(pow(y, 2)/(4*p), y);
+        endShape();
+
+        let hoveredTerm = checkHoveredTerm(worldMX, worldMY, p);
+
+        if (mouseIsPressed && !isOverUI() && hoveredTerm) {
+            fill(0); noStroke(); textSize(16/zoom); textAlign(CENTER);
+            if (hoveredTerm === "axis") text("대칭축", max(worldMX, 100/zoom), -15/zoom);
+            if (hoveredTerm === "directrix") text("준선", -p - 50/zoom, -150/zoom);
+            if (hoveredTerm === "focus") text("초점", p, -25/zoom);
+            if (hoveredTerm === "vertex") text("꼭짓점", 0, 35/zoom);
+        }
+
+        fill(0); noStroke(); ellipse(0, 0, 12/zoom);
+        fill(0, 122, 255); ellipse(p, 0, 15/zoom);
+
+        let targetX = null, targetY = null, targetD = null;
+        
+        if (mouseIsPressed && mouseButton === LEFT && !isOverUI() && !hoveredTerm) {
+            targetY = worldMY;
+            targetX = pow(targetY, 2) / (4*p);
+            targetD = abs(targetX - (-p));
+        } else if (activePoint) {
+            targetX = activePoint.bx;
+            targetY = activePoint.by;
+            targetD = activePoint.d;
+        }
+
+        if (targetX !== null) {
+            stroke(34, 197, 94); strokeWeight(3/zoom);
+            line(targetX, targetY, -p, targetY); 
+            line(targetX, targetY, p, 0);       
+            
+            drawTickMarks(targetX, targetY, -p, targetY);
+            drawTickMarks(targetX, targetY, p, 0);
+
+            fill(34, 197, 94); noStroke(); ellipse(targetX, targetY, 12/zoom);
+            fill(0); textSize(14/zoom); textAlign(CENTER);
+            text("길이: " + targetD.toFixed(1), (targetX - p)/2, targetY - 15/zoom);
+            text("길이: " + targetD.toFixed(1), (targetX + p)/2, targetY/2 - 15/zoom);
+        }
+    }
+
+    function drawTickMarks(x1, y1, x2, y2) {
+        let midX = (x1 + x2) / 2; let midY = (y1 + y2) / 2;
+        let angle = atan2(y2 - y1, x2 - x1);
+        push(); translate(midX, midY); rotate(angle);
+        stroke(0); strokeWeight(2/zoom);
+        let gap = 3/zoom; let len = 6/zoom;
+        line(-gap, -len, -gap, len); line(gap, -len, gap, len);
+        pop();
+    }
+
+    function getPosAlongPath(path, dists, d) {
+        if (d <= 0) return path[0];
+        let currentDist = 0;
+        for (let i = 0; i < dists.length; i++) {
+            if (d <= currentDist + dists[i]) {
+                let t = (d - currentDist) / dists[i];
+                return p5.Vector.lerp(path[i], path[i+1], t);
+            }
+            currentDist += dists[i];
+        }
+        return path[path.length - 1];
+    }
+
+    // --- 3번: 광학 성질 모드 ---
+    function runMode3() {
+        let p = 150; 
+        let worldMX = (mouseX - width/2 - offsetX) / zoom;
+        let worldMY = (mouseY - height/2 - offsetY) / zoom;
+
+        // 대칭축
+        stroke(200); strokeWeight(2/zoom); drawingContext.setLineDash([10, 10]);
+        line(-height*5, 0, height*5, 0); drawingContext.setLineDash([]);
+
+        // 포물선 반사경
+        noFill(); stroke(50, 50, 200); strokeWeight(4/zoom);
+        beginShape();
+        for (let y = -1500; y < 1500; y += 10) vertex(pow(y, 2)/(4*p), y);
+        endShape();
+
+        // 초점
+        fill(0, 122, 255); noStroke(); ellipse(p, 0, 15/zoom);
+        textSize(16/zoom); textAlign(CENTER); fill(0); text("초점(F)", p, -20/zoom);
+
+        // 상호작용: 빛 생성
+        if (mouseIsPressed && mouseButton === LEFT && !isOverUI()) {
+            let hx = pow(worldMY, 2) / (4*p);
+            let hy = worldMY;
+            let isInside = worldMX > hx;
+
+            // 손전등 그래픽
+            fill(100); noStroke(); rectMode(CENTER);
+            let bodyX = isInside ? worldMX + 15/zoom : worldMX - 15/zoom;
+            rect(bodyX, worldMY, 30/zoom, 18/zoom, 4/zoom);
+            fill(255, 215, 0);
+            let bulbX = isInside ? worldMX - 4/zoom : worldMX + 4/zoom;
+            rect(bulbX, worldMY, 10/zoom, 22/zoom, 3/zoom);
+            rectMode(CORNER);
+
+            // 빛 발사
+            if (frameCount % 8 === 0) {
+                let pts = [];
+                pts.push(createVector(worldMX, worldMY));
+                pts.push(createVector(hx, worldMY)); // 1차 충돌 지점
+
+                if (isInside) { 
+                    if (abs(worldMY) < 1) { 
+                        pts.push(createVector(worldMX + 2000, worldMY));
+                    } else {
+                        pts.push(createVector(p, 0)); // 초점
+                        let hy2 = -4 * p * p / worldMY;
+                        let hx2 = pow(hy2, 2) / (4*p);
+                        pts.push(createVector(hx2, hy2)); // 2차 충돌
+                        pts.push(createVector(hx2 + 2500, hy2)); // 평행 반사
+                    }
+                } else {        
+                    let dirX = hx - p; let dirY = worldMY - 0; 
+                    let mag = sqrt(dirX*dirX + dirY*dirY);
+                    pts.push(createVector(hx + (dirX/mag)*2500, worldMY + (dirY/mag)*2500));
+                }
+
+                let dists = [];
+                let totalDist = 0;
+                for(let i=0; i<pts.length-1; i++) {
+                    let d = p5.Vector.dist(pts[i], pts[i+1]);
+                    dists.push(d);
+                    totalDist += d;
+                }
+                rays.push({ path: pts, dists: dists, totalDist: totalDist, progress: 0 });
+            }
+        }
+
+        let speed = 25 / zoom;
+        let beamLen = 150 / zoom; 
+
+        // 빛 렌더링
+        for (let i = rays.length - 1; i >= 0; i--) {
+            let r = rays[i];
+            r.progress += speed;
+
+            // 연한 예측 경로
+            stroke(255, 204, 0, 40); strokeWeight(2/zoom);
+            for(let j=0; j<r.path.length-1; j++) line(r.path[j].x, r.path[j].y, r.path[j+1].x, r.path[j+1].y);
+
+            let head = r.progress;
+            let tail = max(0, r.progress - beamLen);
+
+            // 실제 레이저 빔
+            noFill(); stroke(255, 220, 0); strokeWeight(6/zoom);
+            beginShape();
+            for (let d = tail; d <= head; d += 10/zoom) {
+                let pos = getPosAlongPath(r.path, r.dists, d);
+                vertex(pos.x, pos.y);
+            }
+            let headPos = getPosAlongPath(r.path, r.dists, head);
+            vertex(headPos.x, headPos.y);
+            endShape();
+
+            noStroke(); fill(255, 255, 255, 200);
+            ellipse(headPos.x, headPos.y, 8/zoom);
+
+            if (tail > r.totalDist) rays.splice(i, 1);
+        }
+
+        // [핵심] 입사각/반사각 표현 로직 (빛이 1차 충돌을 넘었을 때만)
+        let showAngle = document.getElementById('angleCheck').checked;
+        if (showAngle) {
+            // 가장 최근에 발사되어 충돌 지점을 막 통과한 빛을 찾음
+            for (let i = rays.length - 1; i >= 0; i--) {
+                let r = rays[i];
+                if (r.progress > r.dists[0]) { // 빛의 선두가 부딪혔는가?
+                    let hx = r.path[1].x;
+                    let hy = r.path[1].y;
+                    
+                    let vt, vn;
+                    if (abs(hy) < 0.1) {
+                        vt = createVector(0, 1).mult(150/zoom);
+                        vn = createVector(1, 0).mult(90/zoom);
+                    } else {
+                        let mt = 2 * p / hy;
+                        vt = createVector(1, mt).normalize().mult(150/zoom);
+                        let mn = -hy / (2 * p);
+                        vn = createVector(1, mn).normalize().mult(90/zoom);
+                        if (vn.x < 0) vn.mult(-1); // 법선은 항상 안쪽(우측)을 향하도록
+                    }
+
+                    // 1. 접선(초록 점선) 그리기
+                    stroke(40, 167, 69, 180); strokeWeight(2/zoom); drawingContext.setLineDash([6, 6]);
+                    line(hx - vt.x, hy - vt.y, hx + vt.x, hy + vt.y);
+                    
+                    // 2. 법선(주황 실선) 그리기
+                    stroke(255, 136, 0, 220); strokeWeight(2/zoom); drawingContext.setLineDash([]);
+                    line(hx, hy, hx + vn.x, hy + vn.y);
+
+                    // 3. 각도 계산 및 텍스트/아크 표시
+                    let vInc = createVector(r.path[0].x - hx, r.path[0].y - hy).normalize();
+                    let vRef = createVector(r.path[2].x - hx, r.path[2].y - hy).normalize();
+                    let angleRad = acos(constrain(vInc.dot(vn.copy().normalize()), -1, 1)); 
+                    let angleDeg = degrees(angleRad).toFixed(1);
+
+                    // 둥근 아크 느낌의 선 그려주기
+                    let rArc = 45 / zoom;
+                    noFill(); stroke(255, 100, 0, 150); strokeWeight(2/zoom);
+                    let pInc = p5.Vector.add(createVector(hx, hy), p5.Vector.mult(vInc, rArc));
+                    let pRef = p5.Vector.add(createVector(hx, hy), p5.Vector.mult(vRef, rArc));
+                    let pN = p5.Vector.add(createVector(hx, hy), p5.Vector.mult(vn.copy().normalize(), rArc));
+                    
+                    beginShape(); vertex(pInc.x, pInc.y); quadraticVertex(hx + vn.copy().normalize().x*20/zoom, hy + vn.copy().normalize().y*20/zoom, pN.x, pN.y); endShape();
+                    beginShape(); vertex(pRef.x, pRef.y); quadraticVertex(hx + vn.copy().normalize().x*20/zoom, hy + vn.copy().normalize().y*20/zoom, pN.x, pN.y); endShape();
+
+                    // 각도 텍스트 출력
+                    fill(255, 100, 0); noStroke(); textSize(14/zoom); textAlign(CENTER, CENTER);
+                    let txtIncPos = p5.Vector.add(vInc, vn.copy().normalize()).normalize().mult(70/zoom);
+                    let txtRefPos = p5.Vector.add(vRef, vn.copy().normalize()).normalize().mult(70/zoom);
+                    
+                    text("입사각\n" + angleDeg + "°", hx + txtIncPos.x, hy + txtIncPos.y);
+                    text("반사각\n" + angleDeg + "°", hx + txtRefPos.x, hy + txtRefPos.y);
+                    
+                    break; // 중복해서 여러 번 그리는 것을 방지 (가장 최근 충돌한 빛 하나만 기준)
+                }
+            }
+        }
+    }
+
+    function mouseReleased() {
+        if (mode === 2 && mouseButton === LEFT && !isOverUI()) {
+            let worldMX = (mouseX - width/2 - offsetX) / zoom;
+            let worldMY = (mouseY - height/2 - offsetY) / zoom;
+            let p = 150;
+            if (!checkHoveredTerm(worldMX, worldMY, p)) {
+                let bx = pow(worldMY, 2) / (4*p);
+                activePoint = { bx: bx, by: worldMY, d: abs(bx - (-p)) };
+            }
+        }
+    }
+
+    function setMode(m) {
+        mode = m;
+        document.getElementById('tab1').classList.toggle('active', m === 1);
+        document.getElementById('tab2').classList.toggle('active', m === 2);
+        document.getElementById('tab3').classList.toggle('active', m === 3);
+        
+        // 3번 모드일 때만 체크박스 표시
+        document.getElementById('angleUi').style.display = (m === 3) ? 'flex' : 'none';
+        
+        updateInstruction();
+    }
+
+    function updateInstruction() {
+        let ins = document.getElementById('instructions');
+        if (mode === 1) {
+            ins.innerHTML = "휠: 확대/축소 | 우클릭 드래그: 이동<br>기준선 위의 <b>초록색 점 A</b>를 위아래로 움직여보세요.";
+        } else if (mode === 2) {
+            ins.innerHTML = "포물선 위를 클릭하면 <b>길이 정보</b>가 표시됩니다.<br>준선, 초점, 꼭짓점, 축 부근을 <b>꾹 누르면</b> 이름이 나타납니다.";
+        } else if (mode === 3) {
+            ins.innerHTML = "빈 공간을 <b>꾹 누르고 있어보세요.</b> 빛의 이중 반사를 확인할 수 있습니다.<br><b>'입사각/반사각 보기'</b>를 체크하면 부딪히는 순간 각도를 보여줍니다.";
+        }
+    }
+
+    function resetData() { tracePoints = []; activePoint = null; rays = []; document.getElementById('angleCheck').checked = false; }
+    function mouseDragged() { if (mouseButton === RIGHT) { offsetX += mouseX - pmouseX; offsetY += mouseY - pmouseY; } }
+    function mouseWheel(event) { zoom = constrain(zoom - event.delta * 0.001, 0.2, 4); return false; }
+    function isOverUI() { return mouseY < 110 || (mouseX < 220 && mouseY < 220); } // UI 영역 판정 확장
+    function resetView() { zoom = 1.0; offsetX = 0; offsetY = 0; }
+    function drawGrid() {
+        stroke(240); strokeWeight(1/zoom);
+        for (let i = -2000; i < 2000; i += 50) line(i, -2000, i, 2000);
+        for (let j = -2000; j < 2000; j += 50) line(-2000, j, 2000, j);
+    }
+    function windowResized() { resizeCanvas(windowWidth, windowHeight); }
+</script>
+</body>
+</html>
