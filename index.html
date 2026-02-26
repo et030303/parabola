@@ -149,16 +149,15 @@
         noFill(); stroke(0, 122, 255); strokeWeight(4/zoom);
         for (let pt of tracePoints) point(pt.x, pt.y);
 
-        // 특정한 점(F)과 기준선(l) 그리기
-        fill(255, 59, 48); noStroke(); ellipse(p, 0, 15/zoom);
+        // 특정한 점(파란색)과 기준선(빨간색, 얇은 글씨) 그리기
+        fill(0, 122, 255); noStroke(); ellipse(p, 0, 15/zoom);
         stroke(255, 59, 48); strokeWeight(2/zoom); line(-p, -2000, -p, 2000);
         
-        fill(0); textSize(16/zoom); textAlign(CENTER, BASELINE); textStyle(BOLD);
+        fill(0, 122, 255); textSize(16/zoom); textAlign(CENTER, BASELINE); textStyle(NORMAL);
         text("특정한 점", p, -20/zoom);
         
-        fill(255, 59, 48); textAlign(RIGHT, CENTER);
+        fill(255, 59, 48); textAlign(RIGHT, CENTER); textStyle(NORMAL); // 글씨 두께 얇게(NORMAL) 유지
         text("기준선", -p - 15/zoom, safeYTop + 50/zoom);
-        textStyle(NORMAL);
 
         if (!isOverUI()) {
             let my = worldMY;
@@ -184,13 +183,13 @@
             
             let d1 = dist(px, my, p, 0);
 
-            // d1, d2 텍스트
+            // 선분 위에 d1, d2 대신 수치 직접 표시
             fill(0); textSize(16/zoom); textAlign(CENTER);
-            text("d₂", (-p + px)/2, my - 10/zoom);
-            text("d₁", (px + p)/2, my/2 - 10/zoom);
+            text(d1.toFixed(1), (-p + px)/2, my - 10/zoom);
+            text(d1.toFixed(1), (px + p)/2, my/2 - 10/zoom);
             
             fill(0, 122, 255); textSize(20/zoom); textStyle(BOLD);
-            text(`거리의 차가 없습니다!  d₁ = d₂ = ${d1.toFixed(1)}`, 0, safeYTop + 30/zoom);
+            text(`거리의 차가 없습니다!  ${d1.toFixed(1)} = ${d1.toFixed(1)}`, 0, safeYTop + 30/zoom);
             textStyle(NORMAL);
         }
     }
@@ -276,9 +275,31 @@
             
             let d1 = dist(px, py, p, 0);
             
-            fill(0); textSize(16/zoom); textAlign(CENTER);
-            text("d₁", (px + p)/2, py/2 - 10/zoom);
-            text("d₂", (px - p)/2, py - 10/zoom);
+            // 선분의 중점 구하기
+            let midX1 = (px + p)/2; let midY1 = py/2;
+            let midX2 = (px - p)/2; let midY2 = py;
+            
+            // 법선 벡터를 이용해 선분 옆으로 텍스트 위치 띄우기
+            let dir1 = createVector(p - px, -py).normalize();
+            let norm1 = createVector(-dir1.y, dir1.x);
+            if (norm1.y > 0) norm1.mult(-1); // 텍스트가 항상 선 위쪽에 오도록
+            
+            fill(0); textSize(16/zoom); textAlign(CENTER, CENTER);
+            text("d₁", midX1 + norm1.x * 20/zoom, midY1 + norm1.y * 20/zoom);
+            text("d₂", midX2, midY2 - 20/zoom);
+            
+            // 길이가 같다는 기하학적 표시(빗금 2줄) 그리기 함수
+            let drawEqualMarks = (x, y, dx, dy) => {
+                let px = -dy * (6/zoom); let py = dx * (6/zoom);
+                let ox = dx * (3/zoom);  let oy = dy * (3/zoom);
+                
+                stroke(0); strokeWeight(2/zoom);
+                line(x - ox + px, y - oy + py, x - ox - px, y - oy - py);
+                line(x + ox + px, y + oy + py, x + ox - px, y + oy - py);
+            };
+            
+            drawEqualMarks(midX2, midY2, 1, 0);          // 수평선의 빗금
+            drawEqualMarks(midX1, midY1, dir1.x, dir1.y); // 기울어진 선의 빗금
             
             fill(0, 122, 255); textSize(20/zoom); textStyle(BOLD);
             text(`d₁ = d₂ = ${d1.toFixed(1)}`, 0, screenTopY + 30/zoom);
