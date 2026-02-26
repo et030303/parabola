@@ -65,7 +65,6 @@
 </div>
 
 <div id="mathBox"></div>
-
 <div id="infoBox"></div>
 <div id="instructions"></div>
 
@@ -74,7 +73,7 @@
     let zoom = 1.0;
     let offsetX = 0, offsetY = 0;
     
-    let p = 80; // 초점까지의 거리
+    let p = 80;
 
     let tracePoints = [];
     let activeY = null;
@@ -82,9 +81,9 @@
 
     let isInfoOpen = false;
     const conceptTexts = {
-        1: "<h3>자취 작도 원리</h3>포물선은 <b>초점(F)과 준선(l)으로부터의 거리가 같은 점들의 집합</b>입니다.<br><br>마우스를 위아래로 움직여 궤적을 그려보세요. 그려지는 점과 초점 사이의 거리, 그리고 점과 준선 사이의 거리가 <b>항상 같음</b>을 실시간으로 확인할 수 있습니다.",
-        2: "<h3>포물선의 정의와 공식</h3>어느 위치에 있든 <b>초점까지의 거리와 준선까지의 거리가 같습니다.</b><br><br>중심을 지나는 굵은 선은 x축과 y축입니다. 마우스를 <b>초점(빨간 점)</b>이나 <b>준선(빨간 선)</b>에 올려 정확한 좌표와 식을 확인해 보세요.",
-        3: "<h3>포물선의 광학적 성질</h3>포물선의 축(x축)과 <b>평행하게 들어온 빛</b>은 포물선 면에 반사된 후 <b>항상 초점(F)을 향해 모입니다.</b><br><br>빈 공간을 클릭하여 포물선을 향해 빛을 쏴보세요. 파라볼라 안테나나 자동차 전조등의 원리가 바로 이것입니다."
+        1: "<h3>자취 작도 원리</h3>포물선은 <b>초점(F)과 준선(l)으로부터의 거리가 같은 점들의 집합</b>입니다.<br><br>준선 위에 있는 점 A를 위아래로 움직여 궤적을 그려보세요. 포물선 위의 점 P가 그려집니다.",
+        2: "<h3>포물선의 정의와 공식</h3>어느 위치에 있든 <b>초점까지의 거리(d₁)와 준선까지의 거리(d₂)가 같습니다.</b><br><br>마우스를 <b>초점(빨간 점)</b>이나 <b>준선(빨간 선)</b>에 올려 식을 확인해 보세요.",
+        3: "<h3>포물선의 광학적 성질</h3>포물선의 축과 <b>평행하게 들어온 빛</b>은 포물선 면에 부딪힌 후 <b>항상 초점(F)을 향해 모입니다.</b><br><br><b>안쪽</b>에서 빛을 쏘면: 빛이 포물선에 반사되어 초점을 지난 후 다시 포물선에 반사되어 축과 평행하게 나갑니다.<br><b>바깥쪽</b>에서 빛을 쏘면: 포물선의 볼록한 면에 부딪힌 뒤, 마치 초점에서 뻗어나온 것처럼 반사됩니다."
     };
 
     function setup() {
@@ -105,17 +104,13 @@
         updateInstruction();
     }
 
-    // 2번 모드에서 수식과 정보 표시 업데이트 (포물선 공식 및 초점, 준선)
     function updateMathInfo() {
         let html = `
             <div style="font-size:15px; margin-bottom:10px; color:#007bff; font-weight:bold;">[ 실시간 포물선의 방정식 ]</div>
-            
             <div style="display:flex; justify-content:center; align-items:center; font-size: 20px; margin-bottom:15px; font-family: serif;">
                 y<sup>2</sup> = 4(${p})x = ${4*p}x
             </div>
-            
             <hr style="border:0; border-top:1px dashed #ccc; margin:10px 0;">
-            
             <div style="font-size:14px; line-height: 1.8;">
                 <b>• 공식:</b> y<sup>2</sup> = 4px<br>
                 <b>• 초점(F):</b> (${p}, 0)<br>
@@ -141,9 +136,14 @@
         pop();
     }
 
+    // Y축 그릴 때 UI 카테고리 침범을 방지하는 함수
+    function getSafeYTop() {
+        return (-height/2 + 150) / zoom;
+    }
+
     function runMode1() {
-        let worldMX = (mouseX - width/2 - offsetX) / zoom;
         let worldMY = (mouseY - height/2 - offsetY) / zoom;
+        let safeYTop = getSafeYTop();
 
         // 초점(F)과 준선(l) 그리기
         fill(255, 59, 48); noStroke(); ellipse(p, 0, 15/zoom);
@@ -151,38 +151,42 @@
         
         fill(0); textSize(16/zoom); textAlign(CENTER, BASELINE);
         text("F", p, -15/zoom);
-        textAlign(RIGHT, CENTER); text("준선(l)", -p - 10/zoom, -height/2/zoom + 50/zoom);
+        textAlign(RIGHT, CENTER); text("준선(l)", -p - 10/zoom, safeYTop + 50/zoom);
 
-        // 마우스 드래그로 자취 그리기
+        // 마우스 드래그로 점 A 조작 및 자취 그리기
         if (mouseIsPressed && mouseButton === LEFT && !isOverUI()) {
-            let penY = worldMY;
-            let penX = (penY * penY) / (4 * p);
+            let my = worldMY;
+            let px = (my * my) / (4 * p);
             
-            tracePoints.push({x: penX, y: penY});
+            tracePoints.push({x: px, y: my});
             
-            let d1 = dist(penX, penY, p, 0);
-            let d2 = dist(penX, penY, -p, penY);
+            // 점 A (준선 위)
+            fill(0); noStroke(); ellipse(-p, my, 12/zoom);
+            textAlign(RIGHT, CENTER); textSize(16/zoom); textStyle(BOLD); text("A", -p - 15/zoom, my); textStyle(NORMAL);
             
-            stroke(34, 197, 94); strokeWeight(3/zoom);
-            line(p, 0, penX, penY); line(-p, penY, penX, penY);
-            
-            fill(100); noStroke(); ellipse(penX, penY, 10/zoom);
+            // 점 P (포물선 위)
+            fill(100); noStroke(); ellipse(px, my, 12/zoom);
+            textAlign(LEFT, BOTTOM); textSize(16/zoom); textStyle(BOLD); text("P", px + 15/zoom, my - 5/zoom); textStyle(NORMAL);
 
-            fill(0); textSize(15/zoom); textAlign(CENTER);
-            text("d₁: " + d1.toFixed(1), (p + penX)/2, penY/2 - 10/zoom);
-            text("d₂: " + d2.toFixed(1), (-p + penX)/2, penY - 10/zoom);
+            // 연결선
+            stroke(34, 197, 94); strokeWeight(3/zoom);
+            line(-p, my, px, my); // A to P
+            line(px, my, p, 0);   // P to F
             
-            fill(0, 122, 255); textSize(18/zoom); textStyle(BOLD);
-            text("초점까지 거리(d₁) = 준선까지 거리(d₂)", 0, -100/zoom);
+            let d1 = dist(px, my, p, 0);
+
+            // d1, d2 텍스트 (방해되지 않게 선 곁에)
+            fill(0); textSize(16/zoom); textAlign(CENTER);
+            text("d₂", (-p + px)/2, my - 10/zoom);
+            text("d₁", (px + p)/2, my/2 - 10/zoom);
+            
+            // 상단 분리된 툴팁 (거리가 같음)
+            fill(0, 122, 255); textSize(20/zoom); textStyle(BOLD);
+            text(`거리의 차가 없습니다!  d₁ = d₂ = ${d1.toFixed(1)}`, 0, safeYTop + 30/zoom);
             textStyle(NORMAL);
-        } else {
-            // 디폴트 예시 선
-            stroke(150, 150, 150, 100); strokeWeight(3/zoom); noFill();
-            let defY = 150/zoom;
-            let defX = (defY * defY) / (4 * p);
-            beginShape(); vertex(p, 0); vertex(defX, defY); vertex(-p, defY); endShape();
         }
 
+        // 궤적 그리기
         noFill(); stroke(0, 122, 255); strokeWeight(4/zoom);
         for (let pt of tracePoints) point(pt.x, pt.y);
     }
@@ -190,14 +194,25 @@
     function runMode2() {
         let worldMX = (mouseX - width/2 - offsetX) / zoom;
         let worldMY = (mouseY - height/2 - offsetY) / zoom;
+        let safeYTop = getSafeYTop(); // 카테고리를 침범하지 않는 선
 
-        // 1. x축, y축 그리기
+        // 1. x축, y축 그리기 (화살표 추가)
         stroke(100); strokeWeight(2/zoom);
-        line(-2000, 0, 2000, 0); // x축
-        line(0, -2000, 0, 2000); // y축
-        fill(100); noStroke(); textSize(16/zoom); textAlign(LEFT, BASELINE);
-        text("x축", width/2/zoom - 40/zoom, -10/zoom);
-        text("y축", 10/zoom, -height/2/zoom + 30/zoom);
+        let xMax = (width/2 - 20)/zoom;
+        line(-2000, 0, xMax, 0); // x축
+        line(0, 2000, 0, safeYTop); // y축
+        
+        fill(100); noStroke();
+        triangle(xMax, 0, xMax - 15/zoom, -6/zoom, xMax - 15/zoom, 6/zoom); // x축 화살표
+        triangle(0, safeYTop, -6/zoom, safeYTop + 15/zoom, 6/zoom, safeYTop + 15/zoom); // y축 화살표
+        
+        textSize(16/zoom); textAlign(LEFT, BASELINE);
+        text("x축", xMax - 30/zoom, -15/zoom);
+        text("y축", 15/zoom, safeYTop + 15/zoom);
+        
+        // 원점 O 표시 (아래 왼쪽)
+        textAlign(RIGHT, TOP);
+        text("O", -8/zoom, 8/zoom);
 
         // 2. 포물선 그리기
         noFill(); stroke(0, 122, 255); strokeWeight(3/zoom);
@@ -208,7 +223,6 @@
         }
         endShape();
 
-        // 3. 초점과 준선에 대한 호버(Hover) 처리
         let isOverF = dist(worldMX, worldMY, p, 0) < 20/zoom && !isOverUI();
         let isOverL = abs(worldMX - (-p)) < 15/zoom && !isOverUI();
 
@@ -220,7 +234,6 @@
         fill(255, 59, 48); noStroke();
         ellipse(p, 0, isOverF ? 20/zoom : 12/zoom);
 
-        // 4. 호버 시 툴팁(좌표) 표시
         if (isOverF) {
             fill(0); textSize(16/zoom); textStyle(BOLD); textAlign(CENTER, BOTTOM);
             text(`초점 F(${p}, 0)`, p, -20/zoom);
@@ -235,7 +248,7 @@
             textStyle(NORMAL);
         }
 
-        // 5. 클릭 시 해당 y좌표의 포물선 점 고정하여 길이 보여주기
+        // 5. 클릭 시 고정
         if (mouseIsPressed && !isOverUI() && !isOverF && !isOverL) {
             activeY = worldMY;
         }
@@ -245,28 +258,30 @@
             let py = activeY;
             
             stroke(34, 197, 94); strokeWeight(3/zoom);
-            line(px, py, p, 0);      // 초점까지
-            line(px, py, -p, py);    // 준선까지
+            line(px, py, p, 0);      
+            line(px, py, -p, py);    
             
             fill(34, 197, 94); noStroke(); ellipse(px, py, 12/zoom);
+            fill(0); noStroke(); ellipse(-p, py, 10/zoom); // 준선 위 점
             
             let d1 = dist(px, py, p, 0);
-            let d2 = dist(px, py, -p, py);
             
-            fill(0); textSize(15/zoom); textAlign(CENTER);
-            text("d: " + d1.toFixed(1), (px + p)/2, py/2 - 10/zoom);
-            text("d: " + d2.toFixed(1), (px - p)/2, py - 10/zoom);
+            fill(0); textSize(16/zoom); textAlign(CENTER);
+            text("d₁", (px + p)/2, py/2 - 10/zoom);
+            text("d₂", (px - p)/2, py - 10/zoom);
             
-            fill(0, 122, 255); textSize(18/zoom); textStyle(BOLD);
-            text(`초점까지의 거리 = 준선까지의 거리 (${d1.toFixed(1)})`, 0, -100/zoom);
+            // 방해되지 않도록 상단에 툴팁 고정 배치
+            fill(0, 122, 255); textSize(20/zoom); textStyle(BOLD);
+            text(`d₁ = d₂ = ${d1.toFixed(1)}`, 0, safeYTop + 30/zoom);
             textStyle(NORMAL);
         }
     }
 
     function runMode3() {
+        let worldMX = (mouseX - width/2 - offsetX) / zoom;
         let worldMY = (mouseY - height/2 - offsetY) / zoom;
 
-        // 포물선 그리기
+        // 포물선
         noFill(); stroke(0, 122, 255); strokeWeight(3/zoom);
         beginShape();
         for (let y = -1500/zoom; y <= 1500/zoom; y += 10/zoom) {
@@ -274,30 +289,46 @@
         }
         endShape();
 
-        // 초점 표시
+        // 초점
         fill(255, 59, 48); noStroke(); ellipse(p, 0, 15/zoom);
         fill(0); textSize(16/zoom); textAlign(CENTER, BASELINE); text("F", p, -15/zoom);
 
-        // 광원(마우스 위치) 표시
         if(!isOverUI()) {
-            fill(255, 215, 0); noStroke(); ellipse((width/2)/zoom, worldMY, 12/zoom);
+            fill(255, 215, 0); noStroke(); ellipse(worldMX, worldMY, 12/zoom);
         }
 
-        // 클릭 시 빛 발사
         if (mouseIsPressed && mouseButton === LEFT && !isOverUI()) {
             if (frameCount % 10 === 0) {
-                let py = worldMY;
-                let px = (py * py) / (4 * p); // 부딪히는 지점 (포물선 위)
+                let mx = worldMX;
+                let my = worldMY;
+                if (abs(my) < 5/zoom) my = 5/zoom; // 0으로 인한 계산 오류 방지
                 
-                let p_start = createVector((width/2 + offsetX + 500)/zoom, py); // 오른쪽 멀리서 시작
-                let p_hit = createVector(px, py);
-                let p_reflect = createVector(p, 0); // 초점으로 반사
+                let px = (my * my) / (4 * p); 
+                let isInside = mx > px; // 안쪽인지 바깥쪽인지 판별
+
+                let bouncePath = [];
+                let p_start = createVector(mx, my);
                 
-                let bouncePath = [p_start, p_hit, p_reflect];
-                
-                // 빛이 F를 지나 멀리까지 가도록 확장
-                let vRef = p5.Vector.sub(p_reflect, p_hit).normalize();
-                bouncePath.push(createVector(p_reflect.x + vRef.x * 2000, p_reflect.y + vRef.y * 2000));
+                if (isInside) {
+                    // 안쪽에서 쏜 빛 (왼쪽 방향으로 발사 -> 포물선 -> 초점 -> 포물선 -> 오른쪽 방향)
+                    let p_hit1 = createVector(px, my);
+                    let p_f = createVector(p, 0);
+                    
+                    let t1 = my / (2 * p);
+                    let t2 = -1 / t1; 
+                    let p_hit2 = createVector(p * t2 * t2, 2 * p * t2);
+                    let p_end = createVector(p_hit2.x + 2000, p_hit2.y);
+                    
+                    bouncePath = [p_start, p_hit1, p_f, p_hit2, p_end];
+                } else {
+                    // 바깥쪽에서 쏜 빛 (오른쪽 방향으로 발사 -> 볼록면에 튕김 -> 초점에서 멀어지는 방향)
+                    let p_hit = createVector(px, my);
+                    // 빛이 F에서 뻗어나가는 방향과 동일하게 반사됨
+                    let dirRef = p5.Vector.sub(p_hit, createVector(p, 0)).normalize();
+                    let p_end = createVector(p_hit.x + dirRef.x * 2000, p_hit.y + dirRef.y * 2000);
+                    
+                    bouncePath = [p_start, p_hit, p_end];
+                }
 
                 let dists = [];
                 let totalD = 0;
@@ -308,7 +339,7 @@
                 let sumDists = [0];
                 for(let i=0; i<dists.length; i++) sumDists.push(sumDists[i] + dists[i]);
 
-                rays.push({ path: bouncePath, dists: dists, sumDists: sumDists, progress: 0, totalDist: totalD, hitY: py });
+                rays.push({ path: bouncePath, dists: dists, sumDists: sumDists, progress: 0, totalDist: totalD, isInside: isInside });
             }
         }
 
@@ -338,18 +369,17 @@
 
             noStroke(); fill(255, 255, 255, 200); ellipse(headPos.x, headPos.y, 8/zoom);
 
-            // 입사각/반사각 표시
+            // 첫 번째 부딪힌 곳(path[1])에서만 입사각/반사각 표시
             if (showAngle && r.progress > r.sumDists[1]) {
                 let px = r.path[1].x; let py = r.path[1].y;
                 
-                // 포물선 접선의 기울기: y^2 = 4px -> 2y * y' = 4p -> y' = 2p/y
                 let slopeTan = py === 0 ? 9999 : (2 * p) / py;
                 let vTan = createVector(1, slopeTan).normalize();
-                let vNorm = createVector(-vTan.y, vTan.x); // 법선 벡터
+                let vNorm = createVector(-vTan.y, vTan.x); 
                 
-                // 광원 방향(-x)과 법선 내적 확인 후 방향 보정
-                let vInc = createVector(1, 0); 
-                if (vNorm.dot(vInc) < 0) vNorm.mult(-1);
+                let vInc = p5.Vector.sub(r.path[1], r.path[0]).normalize();
+                // 법선 벡터가 광선이 날아오는 쪽을 향하도록 (내적값 음수)
+                if (vNorm.dot(vInc) > 0) vNorm.mult(-1);
                 
                 stroke(40, 167, 69, 150); strokeWeight(2/zoom); drawingContext.setLineDash([6, 6]);
                 line(px - vTan.x*100/zoom, py - vTan.y*100/zoom, px + vTan.x*100/zoom, py + vTan.y*100/zoom);
@@ -361,8 +391,8 @@
                 stroke(255, 136, 0, 180); strokeWeight(2/zoom);
                 line(px, py, px + vNorm.x*80/zoom, py + vNorm.y*80/zoom);
 
-                let vRef = createVector(p - px, -py).normalize();
-                let angleDeg = degrees(acos(vInc.dot(vNorm))).toFixed(1);
+                let vRef = p5.Vector.sub(r.path[2], r.path[1]).normalize();
+                let angleDeg = degrees(acos(vInc.dot(vNorm)* -1)).toFixed(1); // 입사각 계산 보정
 
                 let rArc = 40 / zoom;
                 noFill(); stroke(255, 100, 0, 150); strokeWeight(2/zoom);
@@ -372,10 +402,11 @@
                     if (stop - start > PI) { start = stop; stop = min(a1,a2) + TWO_PI; }
                     arc(px, py, rArc*2, rArc*2, start, stop);
                 };
-                drawArc(vNorm, vInc); drawArc(vNorm, vRef);
+                drawArc(vNorm, p5.Vector.mult(vInc, -1)); // 들어오는 방향 거꾸로 하여 각도 그리기
+                drawArc(vNorm, vRef);
 
                 fill(255, 100, 0); noStroke(); textSize(12/zoom); textAlign(CENTER, CENTER);
-                let txtInc = p5.Vector.add(vInc, vNorm).normalize().mult(60/zoom);
+                let txtInc = p5.Vector.add(p5.Vector.mult(vInc, -1), vNorm).normalize().mult(60/zoom);
                 let txtRef = p5.Vector.add(vRef, vNorm).normalize().mult(60/zoom);
                 text(angleDeg + "°", px + txtInc.x, py + txtInc.y);
                 text(angleDeg + "°", px + txtRef.x, py + txtRef.y);
@@ -423,9 +454,9 @@
 
     function updateInstruction() {
         let ins = document.getElementById('instructions');
-        if (mode === 1) ins.innerHTML = "빈 공간을 <b>클릭하여 위아래로 드래그</b> 해보세요. 실시간으로 거리의 특징을 확인합니다.";
+        if (mode === 1) ins.innerHTML = "<b>준선 위의 점 A(마우스 위치)</b>를 위아래로 움직여 궤적을 그려보세요.";
         else if (mode === 2) ins.innerHTML = "<b>초점(빨간 점)이나 준선(빨간 선)에 마우스를 올려보세요.</b><br>빈 공간을 <b>클릭</b>하면 점과 거리가 고정됩니다.";
-        else if (mode === 3) ins.innerHTML = "마우스를 위아래로 움직이며 <b>클릭(빛 발사)</b> 해보세요. 빛이 포물선에 반사되어 초점으로 모입니다.";
+        else if (mode === 3) ins.innerHTML = "마우스를 포물선 <b>안/밖으로 움직이며 클릭</b>(빛 발사) 해보세요.";
     }
 
     function resetData() { tracePoints = []; activeY = null; rays = []; }
